@@ -831,10 +831,10 @@ MIT License
 If you use Dragon Tensor in your research, please cite:
 
 ```bibtex
-@software{dragon_tensor2024,
+@software{dragon_tensor2025,
   title={Dragon Tensor: High-performance tensor library for financial data analysis},
   author={Dragon Tensor Contributors},
-  year={2024},
+  year={2025},
   url={https://github.com/zhongchun/dragon-tensor}
 }
 ```
