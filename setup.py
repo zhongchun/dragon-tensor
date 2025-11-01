@@ -4,10 +4,12 @@ from pybind11 import get_cmake_dir
 import pybind11
 import os
 
+
 # Read requirements
 def read_requirements():
     with open("requirements.txt", "r") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
 
 ext_modules = [
     Pybind11Extension(
@@ -19,7 +21,7 @@ ext_modules = [
             "include",
             pybind11.get_include(),
         ],
-        language='c++',
+        language="c++",
         cxx_std=17,
     ),
 ]
@@ -54,4 +56,3 @@ setup(
         "Topic :: Office/Business :: Financial",
     ],
 )
-

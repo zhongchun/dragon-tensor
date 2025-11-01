@@ -10,9 +10,17 @@
 #include <string>
 #include <vector>
 
+#include "dragon_tensor/buffer.h"
+#include "dragon_tensor/storage.h"
+
 namespace dragon_tensor {
 
-enum class DType { FLOAT32, FLOAT64, INT32, INT64 };
+// Forward declarations
+class Buffer;
+enum class StorageMode;
+enum class Layout;
+struct TensorMeta;
+// DType is now defined in storage.h
 
 template <typename T>
 class Tensor {
@@ -131,9 +139,25 @@ class Tensor {
   // Copy
   Tensor copy() const;
 
+  // Storage operations (new in v0.2)
+  void save(const std::string& path, Layout layout = Layout::RowMajor) const;
+  static Tensor load(const std::string& path, bool mmap = true);
+
+  // Shared memory operations
+  static Tensor create_shared(const std::string& name,
+                              const std::vector<size_t>& shape,
+                              Layout layout = Layout::RowMajor);
+  static Tensor attach_shared(const std::string& name);
+  void detach();
+  static void destroy_shared(const std::string& name);
+  void flush();  // Force write-back for file-backed tensors
+
  private:
   std::vector<size_t> shape_;
   std::vector<T> data_;
+  StorageMode storage_mode_ = StorageMode::InMemory;
+  Layout layout_ = Layout::RowMajor;
+  std::shared_ptr<Buffer> buffer_;  // Optional: for mmap/shared memory
 
   size_t calculate_offset(const std::vector<size_t>& indices) const;
   void validate_shape(const std::vector<size_t>& shape) const;

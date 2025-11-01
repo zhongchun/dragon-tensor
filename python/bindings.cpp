@@ -1,3 +1,4 @@
+#include <dragon_tensor/storage.h>
 #include <dragon_tensor/tensor.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
@@ -327,6 +328,48 @@ void bind_tensor_operations(py::module& m, const std::string& name_suffix) {
 
       // Copy
       .def("copy", &Tensor<T>::copy)
+
+      // Storage operations (v0.2)
+      .def(
+          "save",
+          [](const Tensor<T>& self, const std::string& path,
+             const std::string& layout_str) {
+            Layout layout = (layout_str == "column" || layout_str == "col")
+                                ? Layout::ColumnMajor
+                                : Layout::RowMajor;
+            self.save(path, layout);
+          },
+          py::arg("path"), py::arg("layout") = "row",
+          "Save tensor to file in row- or column-major layout")
+      .def_static(
+          "load",
+          [](const std::string& path,
+             bool mmap) { return Tensor<T>::load(path, mmap); },
+          py::arg("path"), py::arg("mmap") = true,
+          "Load tensor from file, optionally using memory-mapping")
+      .def_static(
+          "create_shared",
+          [](const std::string& name, const std::vector<size_t>& shape,
+             const std::string& dtype_str, const std::string& layout_str) {
+            Layout layout = (layout_str == "column" || layout_str == "col")
+                                ? Layout::ColumnMajor
+                                : Layout::RowMajor;
+            return Tensor<T>::create_shared(name, shape, layout);
+          },
+          py::arg("name"), py::arg("shape"), py::arg("dtype") = "",
+          py::arg("layout") = "row", "Create shared-memory tensor")
+      .def_static(
+          "attach_shared",
+          [](const std::string&
+                 name) { return Tensor<T>::attach_shared(name); },
+          py::arg("name"), "Attach to existing shared-memory tensor")
+      .def("detach", &Tensor<T>::detach, "Unmap shared-memory tensor")
+      .def_static(
+          "destroy_shared",
+          [](const std::string& name) { Tensor<T>::destroy_shared(name); },
+          py::arg("name"), "Destroy shared-memory segment")
+      .def("flush", &Tensor<T>::flush,
+           "Force write-back for file-backed tensors")
 
       // String representation
       .def("__repr__", [class_name](const Tensor<T>& t) {

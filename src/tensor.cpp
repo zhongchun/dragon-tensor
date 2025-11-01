@@ -6,6 +6,8 @@
 #include <numeric>
 #include <stdexcept>
 
+#include "dragon_tensor/io.h"
+
 namespace dragon_tensor {
 
 template <typename T>
@@ -892,6 +894,82 @@ Tensor<T> Tensor<T>::copy() const {
   return Tensor(*this);
 }
 
+// Storage operations implementation
+template <typename T>
+void Tensor<T>::save(const std::string& path, Layout layout) const {
+  io::save_tensor(*this, path, layout);
+}
+
+template <typename T>
+Tensor<T> Tensor<T>::load(const std::string& path, bool mmap) {
+  return io::load_tensor<T>(path, mmap);
+}
+
+template <typename T>
+Tensor<T> Tensor<T>::create_shared(const std::string& name,
+                                   const std::vector<size_t>& shape,
+                                   Layout layout) {
+  // Calculate size needed
+  size_t total_elements = 1;
+  for (size_t dim : shape) {
+    total_elements *= dim;
+  }
+  size_t size_bytes = total_elements * sizeof(T);
+
+  // Create shared memory buffer
+  auto buffer = SharedMemoryBuffer::create(name, size_bytes);
+
+  // Create tensor wrapping the shared memory
+  Tensor<T> tensor;
+  tensor.shape_ = shape;
+  tensor.storage_mode_ = StorageMode::SharedMemory;
+  tensor.layout_ = layout;
+  tensor.buffer_ = buffer;
+
+  // Initialize data vector to point to shared memory
+  T* shared_data = static_cast<T*>(buffer->data());
+  tensor.data_.assign(shared_data, shared_data + total_elements);
+
+  return tensor;
+}
+
+template <typename T>
+Tensor<T> Tensor<T>::attach_shared(const std::string& name) {
+  // Attach to existing shared memory
+  auto buffer = SharedMemoryBuffer::attach(name);
+
+  // We need to read shape from shared memory header (simplified for now)
+  // For a full implementation, we'd store metadata in shared memory
+  throw std::runtime_error(
+      "attach_shared: Full implementation requires metadata in shared memory");
+
+  // Placeholder - would need to read shape from shared memory header
+  Tensor<T> tensor;
+  tensor.buffer_ = buffer;
+  tensor.storage_mode_ = StorageMode::SharedMemory;
+  return tensor;
+}
+
+template <typename T>
+void Tensor<T>::detach() {
+  if (buffer_) {
+    buffer_->detach();
+    buffer_.reset();
+  }
+}
+
+template <typename T>
+void Tensor<T>::destroy_shared(const std::string& name) {
+  SharedMemoryBuffer::destroy(name);
+}
+
+template <typename T>
+void Tensor<T>::flush() {
+  if (buffer_) {
+    buffer_->flush();
+  }
+}
+
 }  // namespace dragon_tensor
 
 // Explicit template instantiation for common types
@@ -900,4 +978,5 @@ template class Tensor<float>;
 template class Tensor<double>;
 template class Tensor<int32_t>;
 template class Tensor<int64_t>;
+template class Tensor<uint8_t>;
 }  // namespace dragon_tensor
