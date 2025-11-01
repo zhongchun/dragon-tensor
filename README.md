@@ -406,12 +406,37 @@ make install        # Install Python package
 make install-dev    # Install in development mode
 make clean          # Clean build directory only
 make clean-all      # Clean build directory, wheels, and Python artifacts
+make format         # Format all C++ and Python files
+make lint           # Check formatting without modifying files
 make examples       # Build and run C++ examples
 make python-examples # Run Python examples
 make help           # Show all available targets
 ```
 
 **Note:** By default, `make` (or `make all`) uses `build.sh` which automatically generates wheels. Use `make build` for direct CMake builds without wheel generation.
+
+### Code Formatting and Linting
+
+The `format.sh` script provides code formatting and linting for both C++ and Python files:
+
+```bash
+# Format all files
+./format.sh                 # Format C++ and Python files
+./format.sh --check         # Check formatting (lint mode, no changes)
+./format.sh --cpp-only      # Format only C++ files
+./format.sh --py-only       # Format only Python files
+./format.sh --install-deps  # Install required tools (black, isort, flake8, clang-format)
+```
+
+**Tools used:**
+- **C++**: `clang-format` (default style: LLVM, configurable)
+- **Python**: `black` (formatting), `isort` (import sorting), `flake8` (linting)
+
+**Or use Makefile targets:**
+```bash
+make format    # Format all files
+make lint      # Check formatting (no changes)
+```
 
 ## Running Examples
 
@@ -514,9 +539,45 @@ pip install dist/dragon_tensor-*.whl
 - `./build.sh --no-wheel` - Builds C++ library without generating wheel
 - `./build.sh --clean` - Removes dist/ directory with all wheels
 
+## Code Formatting
+
+The project uses **Google C++ Style Guide** as the default coding style, enforced via a `.clang-format` configuration file. This ensures all C++ code follows consistent formatting automatically.
+
+The project includes a formatting script to ensure consistent code style:
+
+```bash
+# Format all files (C++ and Python)
+./format.sh
+
+# Check formatting without modifying files
+./format.sh --check
+
+# Format only C++ files (uses .clang-format with Google style)
+./format.sh -C
+
+# Format only Python files
+./format.sh -P
+```
+
+**C++ Style**: Google C++ Style Guide (enforced via `.clang-format`)  
+**Python Style**: Black formatter
+
+**Note**: When `clang-format` is run in this project (including via IDEs and editors), it will automatically use the Google style configuration from `.clang-format`.
+
+The format script automatically:
+- Formats C++ files using `clang-format` with Google style
+- Formats Python files using `black`
+- Installs missing Python formatting tools if needed
+- Skips build directories and other non-source files
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+Before submitting:
+1. Run `./format.sh` to ensure code is properly formatted
+2. Ensure all tests pass
+3. Update documentation if needed
 
 ## License
 
