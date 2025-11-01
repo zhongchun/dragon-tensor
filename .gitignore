@@ -33,6 +33,7 @@ Thumbs.db
 .venv/
 venv/
 env/
+.python-version
 
 # Compiled files
 *.o
