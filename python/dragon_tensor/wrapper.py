@@ -121,22 +121,35 @@ def from_torch(tensor):
 
 
 def to_torch(tensor, device=None, dtype=None):
-    """Convert Dragon Tensor to PyTorch tensor
+    """Convert Dragon Tensor to PyTorch tensor (zero-copy)
     
     Args:
         tensor: Dragon Tensor
-        device: Optional device for PyTorch tensor
-        dtype: Optional dtype for PyTorch tensor
+        device: Optional device for PyTorch tensor (will copy if not CPU)
+        dtype: Optional dtype for PyTorch tensor (will copy if different)
         
     Returns:
-        PyTorch tensor
+        PyTorch tensor (zero-copy when device=None and dtype matches)
+    
+    Note:
+        torch.from_numpy() creates a zero-copy view when the NumPy array
+        is C-contiguous. Since tensor.to_numpy() returns a zero-copy view,
+        this conversion is also zero-copy (unless device/dtype conversion is needed).
     """
     if not HAS_TORCH:
         raise ImportError("torch is required for to_torch")
     
+    # Get zero-copy NumPy array
     arr = tensor.to_numpy()
+    
+    # torch.from_numpy() creates zero-copy view (shares memory with NumPy)
+    # This works because:
+    # 1. tensor.to_numpy() returns zero-copy view of Tensor's data
+    # 2. torch.from_numpy() creates zero-copy view of NumPy array
+    # 3. Result: Tensor -> NumPy -> PyTorch all share the same memory!
     torch_tensor = torch.from_numpy(arr)
     
+    # Device/dtype conversions require copying
     if device is not None:
         torch_tensor = torch_tensor.to(device)
     if dtype is not None:

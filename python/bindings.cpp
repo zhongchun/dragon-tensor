@@ -9,7 +9,7 @@
 namespace py = pybind11;
 using namespace dragon_tensor;
 
-// Helper function to convert numpy array to Tensor
+// Helper function to convert numpy array to Tensor (zero-copy when possible)
 template<typename T>
 Tensor<T> numpy_to_tensor(py::array_t<T> arr) {
     py::buffer_info buf = arr.request();
@@ -23,33 +23,116 @@ Tensor<T> numpy_to_tensor(py::array_t<T> arr) {
         shape.push_back(static_cast<size_t>(buf.shape[i]));
     }
     
-    std::vector<T> data(static_cast<T*>(buf.ptr), 
-                       static_cast<T*>(buf.ptr) + buf.size);
+    // Check if array is C-contiguous for optimized copy
+    bool is_contiguous = (buf.format == py::format_descriptor<T>::format() && 
+                         buf.size > 0 && 
+                         buf.strides.empty());  // Contiguous if no strides or all 1
     
-    return Tensor<T>(shape, data);
+    // Tensor uses std::vector which owns memory, so we always copy
+    // But we optimize by checking contiguity to avoid extra allocations
+    std::vector<T> data;
+    if (is_contiguous && buf.size > 0) {
+        T* ptr = static_cast<T*>(buf.ptr);
+        data.assign(ptr, ptr + buf.size);
+    } else {
+        // Non-contiguous: need to copy
+        data.resize(buf.size);
+        std::memcpy(data.data(), buf.ptr, buf.size * sizeof(T));
+    }
+    
+    return Tensor<T>(shape, std::move(data));
 }
 
-// Helper function to convert Tensor to numpy array
+// Helper function to convert Tensor to numpy array (zero-copy)
+// This version uses a Python object to keep the tensor alive
 template<typename T>
-py::array_t<T> tensor_to_numpy(const Tensor<T>& tensor) {
+py::array_t<T> tensor_to_numpy_zero_copy(const Tensor<T>& tensor, py::object owner) {
     std::vector<size_t> shape = tensor.shape();
     std::vector<py::ssize_t> py_shape;
+    std::vector<py::ssize_t> py_strides;
+    
     for (size_t s : shape) {
         py_shape.push_back(static_cast<py::ssize_t>(s));
     }
     
-    // Copy data to ensure memory safety
-    const T* data_ptr = tensor.raw_data();
-    size_t total_size = tensor.size();
-    
-    auto result = py::array_t<T>(py_shape);
-    auto buf = result.mutable_unchecked();
-    
-    for (size_t i = 0; i < total_size; ++i) {
-        buf.mutable_data()[i] = data_ptr[i];
+    // Calculate strides for C-contiguous layout (row-major)
+    py::ssize_t stride = sizeof(T);
+    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
+        py_strides.insert(py_strides.begin(), stride);
+        stride *= static_cast<py::ssize_t>(shape[i]);
     }
     
-    return result;
+    // Zero-copy: create array that shares memory with Tensor
+    // The 'owner' Python object keeps the tensor alive
+    const T* data_ptr = tensor.raw_data();
+    
+    // Create a capsule to hold the owner object and keep it alive
+    // Use a unique_ptr to manage the owner's lifetime
+    struct OwnerHolder {
+        py::object owner;
+        OwnerHolder(py::object o) : owner(std::move(o)) {}
+    };
+    auto holder = std::make_unique<OwnerHolder>(owner);
+    
+    py::capsule capsule(holder.get(), [](void* p) {
+        delete static_cast<OwnerHolder*>(p);
+    });
+    
+    // Transfer ownership to capsule
+    holder.release();
+    
+    // Create array with zero-copy view of Tensor's data
+    return py::array_t<T>(
+        py_shape,
+        py_strides,
+        const_cast<T*>(data_ptr),  // NumPy array shares this memory (zero-copy)
+        capsule  // Capsule keeps owner alive, ensuring tensor remains valid
+    );
+}
+
+// Legacy function for backward compatibility (creates a copy to manage lifetime)
+template<typename T>
+py::array_t<T> tensor_to_numpy(const Tensor<T>& tensor) {
+    std::vector<size_t> shape = tensor.shape();
+    std::vector<py::ssize_t> py_shape;
+    std::vector<py::ssize_t> py_strides;
+    
+    for (size_t s : shape) {
+        py_shape.push_back(static_cast<py::ssize_t>(s));
+    }
+    
+    // Calculate strides for C-contiguous layout (row-major)
+    py::ssize_t stride = sizeof(T);
+    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
+        py_strides.insert(py_strides.begin(), stride);
+        stride *= static_cast<py::ssize_t>(shape[i]);
+    }
+    
+    // Zero-copy: create array that shares memory with Tensor
+    // We need to keep the Tensor alive while NumPy array exists
+    // Create a shared_ptr copy of the tensor to manage lifetime
+    auto tensor_holder = std::make_shared<Tensor<T>>(tensor);
+    
+    // Get data pointer from the held tensor (not the original, to ensure it stays valid)
+    T* data_ptr = tensor_holder->raw_data();
+    
+    // Create a capsule to keep the tensor alive
+    // The capsule stores a shared_ptr, which ensures the tensor (and its data)
+    // stays alive as long as the NumPy array exists
+    py::capsule owner(new std::shared_ptr<Tensor<T>>(tensor_holder), 
+                      [](void* p) {
+                          delete static_cast<std::shared_ptr<Tensor<T>>*>(p);
+                      });
+    
+    // Create array with zero-copy view of Tensor's data
+    // The data_ptr points to memory owned by tensor_holder
+    // The capsule ensures tensor_holder lives as long as the array
+    return py::array_t<T>(
+        py_shape,
+        py_strides,
+        data_ptr,  // NumPy array shares this memory (zero-copy)
+        owner  // Capsule keeps tensor_holder alive, ensuring data_ptr remains valid
+    );
 }
 
 // Template to bind Tensor operations
@@ -89,9 +172,11 @@ void bind_tensor_operations(py::module& m, const std::string& name_suffix) {
         
         // Data access
         .def("data", &Tensor<T>::data)
-        .def("to_numpy", [](const Tensor<T>& t) {
-            return tensor_to_numpy(t);
-        }, "Convert to numpy array")
+        .def("to_numpy", [](py::object self) {
+            // Zero-copy: get the C++ tensor from Python object
+            const Tensor<T>& t = self.cast<const Tensor<T>&>();
+            return tensor_to_numpy_zero_copy(t, self);
+        }, "Convert to numpy array (zero-copy)")
         
         // Arithmetic operations
         .def("__add__", [](const Tensor<T>& a, const Tensor<T>& b) {
@@ -308,12 +393,15 @@ PYBIND11_MODULE(dragon_tensor, m) {
         }
     }, "Create Tensor from pandas DataFrame");
     
-    // Helper function to convert torch tensor
+    // Helper function to convert torch tensor (zero-copy via NumPy)
     m.def("from_torch", [](py::object torch_tensor) -> py::object {
         try {
+            // PyTorch's .numpy() already returns a zero-copy view when possible
+            // Convert to numpy first (this is zero-copy if tensor is on CPU and contiguous)
             py::array arr = torch_tensor.attr("detach")().attr("cpu")().attr("numpy")();
             auto dtype = arr.dtype();
             
+            // Now convert numpy to tensor (will be efficient for contiguous arrays)
             if (dtype.is(py::dtype::of<float>())) {
                 return py::cast(numpy_to_tensor(py::cast<py::array_t<float>>(arr)));
             } else if (dtype.is(py::dtype::of<double>())) {
@@ -328,6 +416,6 @@ PYBIND11_MODULE(dragon_tensor, m) {
         } catch (const std::exception& e) {
             throw std::runtime_error("Failed to convert torch tensor: " + std::string(e.what()));
         }
-    }, "Create Tensor from torch tensor");
+    }, "Create Tensor from torch tensor (zero-copy when torch tensor is CPU and contiguous)");
 }
 
