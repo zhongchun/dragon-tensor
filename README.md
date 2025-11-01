@@ -24,6 +24,7 @@ A high-performance tensor library written in C++17, designed specifically for fi
   - [Advanced: Persistent Storage](#advanced-persistent-storage)
   - [Advanced: Shared Memory](#advanced-shared-memory)
 - [API Reference](#api-reference)
+- [Documentation](#documentation)
 - [Project Structure & Architecture](#project-structure--architecture)
 - [Performance](#performance)
 - [Running Examples](#running-examples)
@@ -495,19 +496,25 @@ dt.TensorDouble.destroy_shared("risk_shared")
 
 ## API Reference
 
-### Core Operations
+For complete API documentation, see:
+- **[C++ API Reference](docs/api_cpp.md)** - Complete C++ API with detailed method signatures
+- **[Python API Reference](docs/api_python.md)** - Complete Python API with examples
+
+### Quick Reference
+
+#### Core Operations
 
 - **Shape Operations**: `shape()`, `ndim()`, `size()`, `reshape()`, `flatten()`
 - **Element Access**: `[]`, `at()`
 - **Arithmetic**: `+`, `-`, `*`, `/` (element-wise and with scalars)
 - **Mathematical**: `abs()`, `sqrt()`, `exp()`, `log()`, `pow()`
 
-### Statistical Operations
+#### Statistical Operations
 
 - **Aggregation**: `sum()`, `mean()`, `std()`, `var()`, `max()`, `min()`
 - **Axis Operations**: `sum(axis)`, `mean(axis)`, `std(axis)`, etc.
 
-### Financial Operations
+#### Financial Operations
 
 - `returns()`: Calculate percentage returns
 - `rolling_mean(window)`: Rolling average
@@ -518,12 +525,12 @@ dt.TensorDouble.destroy_shared("risk_shared")
 - `correlation(other)`: Correlation coefficient
 - `covariance(other)`: Covariance
 
-### Matrix Operations (2D only)
+#### Matrix Operations (2D only)
 
 - `transpose()`: Matrix transpose
 - `matmul(other)`: Matrix multiplication
 
-### Storage Operations (v0.2)
+#### Storage Operations (v0.2)
 
 - `save(path, layout="row")`: Save tensor to file with specified layout
 - `load(path, mmap=True)`: Load tensor from file, optionally using memory mapping
@@ -819,6 +826,20 @@ Before submitting:
 - Financial analysis functions
 - NumPy/Pandas/PyTorch integration
 - Basic statistical operations
+
+## Documentation
+
+Complete documentation is available in the [`docs/`](docs/) directory:
+
+### API Documentation
+- **[C++ API Reference](docs/api_cpp.md)** - Comprehensive C++ API with method signatures, parameters, and examples
+- **[Python API Reference](docs/api_python.md)** - Complete Python API with usage examples and type conversion guide
+
+### Design Documents
+- **[Requirements Document v0.1](docs/requirements_doc_0.1.md)** - Initial design and requirements specification
+- **[Requirements Document v0.2](docs/requirements_doc_0.2.md)** - Enhanced design with storage layer, buffer abstraction, and shared memory support
+
+See [docs/README.md](docs/README.md) for an overview of all documentation.
 
 ## License & Citation
 
