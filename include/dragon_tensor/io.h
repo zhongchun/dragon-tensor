@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "dragon_tensor/storage.h"
@@ -20,12 +21,12 @@ namespace io {
 
 // Save tensor to file with specified layout
 template <typename T>
-void save_tensor(const Tensor<T>& tensor, const std::string& path,
+void save_tensor(const Tensor<T>& tensor, std::string_view path,
                  Layout layout = Layout::RowMajor);
 
 // Load tensor from file (with optional mmap)
 template <typename T>
-Tensor<T> load_tensor(const std::string& path, bool mmap = true);
+[[nodiscard]] Tensor<T> load_tensor(std::string_view path, bool mmap = true);
 
 // Helper to get dtype enum from type
 template <typename T>

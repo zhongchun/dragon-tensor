@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Link filesystem library (required for std::filesystem in C++17)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lstdc++fs")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lc++fs")
+endif()
+
 # Build options
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_TESTS "Build tests" ON)
@@ -70,6 +77,15 @@ target_include_directories(dragon_tensor PUBLIC
 )
 
 target_compile_features(dragon_tensor PUBLIC cxx_std_17)
+
+# Link filesystem library if needed (some compilers require explicit linking)
+find_library(FILESYSTEM_LIB
+    NAMES stdc++fs c++fs
+    PATHS /usr/lib /usr/local/lib
+)
+if(FILESYSTEM_LIB)
+    target_link_libraries(dragon_tensor PRIVATE ${FILESYSTEM_LIB})
+endif()
 
 # Python bindings
 if(BUILD_PYTHON_BINDINGS)

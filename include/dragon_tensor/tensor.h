@@ -8,6 +8,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "dragon_tensor/buffer.h"
@@ -43,16 +44,16 @@ class Tensor {
   Tensor& operator=(Tensor&& other) noexcept;
 
   // Shape operations
-  const std::vector<size_t>& shape() const { return shape_; }
-  size_t ndim() const { return shape_.size(); }
-  size_t size() const { return data_.size(); }
-  bool empty() const { return data_.empty(); }
+  [[nodiscard]] const std::vector<size_t>& shape() const { return shape_; }
+  [[nodiscard]] size_t ndim() const { return shape_.size(); }
+  [[nodiscard]] size_t size() const { return data_.size(); }
+  [[nodiscard]] bool empty() const { return data_.empty(); }
 
   // Reshape
-  Tensor reshape(const std::vector<size_t>& new_shape) const;
+  [[nodiscard]] Tensor reshape(const std::vector<size_t>& new_shape) const;
 
   // Flatten
-  Tensor flatten() const;
+  [[nodiscard]] Tensor flatten() const;
 
   // Element access
   T& operator[](size_t index) { return data_[index]; }
@@ -70,14 +71,14 @@ class Tensor {
   const T* raw_data() const { return data_.data(); }
 
   // Arithmetic operations
-  Tensor operator+(const Tensor& other) const;
-  Tensor operator+(T scalar) const;
-  Tensor operator-(const Tensor& other) const;
-  Tensor operator-(T scalar) const;
-  Tensor operator*(const Tensor& other) const;
-  Tensor operator*(T scalar) const;
-  Tensor operator/(const Tensor& other) const;
-  Tensor operator/(T scalar) const;
+  [[nodiscard]] Tensor operator+(const Tensor& other) const;
+  [[nodiscard]] Tensor operator+(T scalar) const;
+  [[nodiscard]] Tensor operator-(const Tensor& other) const;
+  [[nodiscard]] Tensor operator-(T scalar) const;
+  [[nodiscard]] Tensor operator*(const Tensor& other) const;
+  [[nodiscard]] Tensor operator*(T scalar) const;
+  [[nodiscard]] Tensor operator/(const Tensor& other) const;
+  [[nodiscard]] Tensor operator/(T scalar) const;
 
   Tensor& operator+=(const Tensor& other);
   Tensor& operator+=(T scalar);
@@ -93,63 +94,64 @@ class Tensor {
   bool operator!=(const Tensor& other) const;
 
   // Mathematical operations
-  Tensor abs() const;
-  Tensor sqrt() const;
-  Tensor exp() const;
-  Tensor log() const;
-  Tensor pow(T exponent) const;
+  [[nodiscard]] Tensor abs() const;
+  [[nodiscard]] Tensor sqrt() const;
+  [[nodiscard]] Tensor exp() const;
+  [[nodiscard]] Tensor log() const;
+  [[nodiscard]] Tensor pow(T exponent) const;
 
   // Statistical operations
-  T sum() const;
-  T mean() const;
-  T max() const;
-  T min() const;
-  T std() const;
-  T var() const;
+  [[nodiscard]] T sum() const;
+  [[nodiscard]] T mean() const;
+  [[nodiscard]] T max() const;
+  [[nodiscard]] T min() const;
+  [[nodiscard]] T std() const;
+  [[nodiscard]] T var() const;
 
   // Statistical operations along axis (for 2D tensors)
-  Tensor sum(size_t axis) const;
-  Tensor mean(size_t axis) const;
-  Tensor max(size_t axis) const;
-  Tensor min(size_t axis) const;
-  Tensor std(size_t axis) const;
-  Tensor var(size_t axis) const;
+  [[nodiscard]] Tensor sum(size_t axis) const;
+  [[nodiscard]] Tensor mean(size_t axis) const;
+  [[nodiscard]] Tensor max(size_t axis) const;
+  [[nodiscard]] Tensor min(size_t axis) const;
+  [[nodiscard]] Tensor std(size_t axis) const;
+  [[nodiscard]] Tensor var(size_t axis) const;
 
   // Financial operations
-  Tensor returns() const;  // Calculate returns: (x[i] - x[i-1]) / x[i-1]
-  Tensor rolling_mean(size_t window) const;
-  Tensor rolling_std(size_t window) const;
-  Tensor rolling_sum(size_t window) const;
-  Tensor rolling_max(size_t window) const;
-  Tensor rolling_min(size_t window) const;
+  [[nodiscard]] Tensor returns()
+      const;  // Calculate returns: (x[i] - x[i-1]) / x[i-1]
+  [[nodiscard]] Tensor rolling_mean(size_t window) const;
+  [[nodiscard]] Tensor rolling_std(size_t window) const;
+  [[nodiscard]] Tensor rolling_sum(size_t window) const;
+  [[nodiscard]] Tensor rolling_max(size_t window) const;
+  [[nodiscard]] Tensor rolling_min(size_t window) const;
 
   // Correlation and covariance
-  Tensor correlation(const Tensor& other) const;
-  Tensor covariance(const Tensor& other) const;
+  [[nodiscard]] Tensor correlation(const Tensor& other) const;
+  [[nodiscard]] Tensor covariance(const Tensor& other) const;
 
   // Slicing (for 1D and 2D)
-  Tensor slice(size_t start, size_t end) const;
-  Tensor slice_row(size_t row) const;
-  Tensor slice_column(size_t col) const;
+  [[nodiscard]] Tensor slice(size_t start, size_t end) const;
+  [[nodiscard]] Tensor slice_row(size_t row) const;
+  [[nodiscard]] Tensor slice_column(size_t col) const;
 
   // Matrix operations (for 2D tensors)
-  Tensor transpose() const;
-  Tensor matmul(const Tensor& other) const;
+  [[nodiscard]] Tensor transpose() const;
+  [[nodiscard]] Tensor matmul(const Tensor& other) const;
 
   // Copy
-  Tensor copy() const;
+  [[nodiscard]] Tensor copy() const;
 
   // Storage operations (new in v0.2)
-  void save(const std::string& path, Layout layout = Layout::RowMajor) const;
-  static Tensor load(const std::string& path, bool mmap = true);
+  void save(std::string_view path, Layout layout = Layout::RowMajor) const;
+  [[nodiscard]] static Tensor load(std::string_view path, bool mmap = true);
 
   // Shared memory operations
-  static Tensor create_shared(const std::string& name,
-                              const std::vector<size_t>& shape,
-                              Layout layout = Layout::RowMajor);
-  static Tensor attach_shared(const std::string& name);
+  [[nodiscard]] static Tensor create_shared(std::string_view name,
+                                            const std::vector<size_t>& shape,
+                                            Layout layout = Layout::RowMajor);
+  [[nodiscard]] static Tensor attach_shared(std::string_view name);
   void detach();
-  static void destroy_shared(const std::string& name);
+  static void destroy_shared(std::string_view name);
   void flush();  // Force write-back for file-backed tensors
 
  private:

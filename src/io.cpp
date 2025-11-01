@@ -3,21 +3,33 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
+#include <string>
 
 #include "dragon_tensor/buffer.h"
 #include "dragon_tensor/storage.h"
 #include "dragon_tensor/tensor.h"
 
+namespace fs = std::filesystem;
+
 namespace dragon_tensor {
 namespace io {
 
 template <typename T>
-void save_tensor(const Tensor<T>& tensor, const std::string& path,
+void save_tensor(const Tensor<T>& tensor, std::string_view path,
                  Layout layout) {
-  std::ofstream file(path, std::ios::binary);
+  // Use C++17 filesystem to ensure parent directory exists
+  fs::path file_path(path);
+  if (auto parent = file_path.parent_path(); !parent.empty()) {
+    fs::create_directories(parent);
+  }
+
+  std::string path_str(path);  // Convert string_view to string for ofstream
+  std::ofstream file(path_str, std::ios::binary);
   if (!file.is_open()) {
-    throw std::runtime_error("Failed to open file for writing: " + path);
+    throw std::runtime_error("Failed to open file for writing: " +
+                             std::string(path));
   }
 
   // Prepare header
@@ -59,15 +71,22 @@ void save_tensor(const Tensor<T>& tensor, const std::string& path,
 }
 
 template <typename T>
-Tensor<T> load_tensor(const std::string& path, bool mmap) {
+Tensor<T> load_tensor(std::string_view path, bool mmap) {
+  // Use C++17 filesystem to check file existence
+  if (!fs::exists(path)) {
+    throw std::runtime_error("File does not exist: " + std::string(path));
+  }
+
   if (mmap) {
     // TODO: Implement mmap loading
     // For now, fall back to regular load
   }
 
-  std::ifstream file(path, std::ios::binary);
+  std::string path_str(path);  // Convert string_view to string for ifstream
+  std::ifstream file(path_str, std::ios::binary);
   if (!file.is_open()) {
-    throw std::runtime_error("Failed to open file for reading: " + path);
+    throw std::runtime_error("Failed to open file for reading: " +
+                             std::string(path));
   }
 
   // Read header
@@ -126,22 +145,22 @@ Tensor<T> load_tensor(const std::string& path, bool mmap) {
 }
 
 // Explicit instantiations
-template void save_tensor<float>(const Tensor<float>&, const std::string&,
+template void save_tensor<float>(const Tensor<float>&, std::string_view,
                                  Layout);
-template void save_tensor<double>(const Tensor<double>&, const std::string&,
+template void save_tensor<double>(const Tensor<double>&, std::string_view,
                                   Layout);
-template void save_tensor<int32_t>(const Tensor<int32_t>&, const std::string&,
+template void save_tensor<int32_t>(const Tensor<int32_t>&, std::string_view,
                                    Layout);
-template void save_tensor<int64_t>(const Tensor<int64_t>&, const std::string&,
+template void save_tensor<int64_t>(const Tensor<int64_t>&, std::string_view,
                                    Layout);
-template void save_tensor<uint8_t>(const Tensor<uint8_t>&, const std::string&,
+template void save_tensor<uint8_t>(const Tensor<uint8_t>&, std::string_view,
                                    Layout);
 
-template Tensor<float> load_tensor<float>(const std::string&, bool);
-template Tensor<double> load_tensor<double>(const std::string&, bool);
-template Tensor<int32_t> load_tensor<int32_t>(const std::string&, bool);
-template Tensor<int64_t> load_tensor<int64_t>(const std::string&, bool);
-template Tensor<uint8_t> load_tensor<uint8_t>(const std::string&, bool);
+template Tensor<float> load_tensor<float>(std::string_view, bool);
+template Tensor<double> load_tensor<double>(std::string_view, bool);
+template Tensor<int32_t> load_tensor<int32_t>(std::string_view, bool);
+template Tensor<int64_t> load_tensor<int64_t>(std::string_view, bool);
+template Tensor<uint8_t> load_tensor<uint8_t>(std::string_view, bool);
 
 }  // namespace io
 }  // namespace dragon_tensor

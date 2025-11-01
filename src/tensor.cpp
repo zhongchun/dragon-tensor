@@ -5,6 +5,7 @@
 #include <functional>
 #include <numeric>
 #include <stdexcept>
+#include <type_traits>
 
 #include "dragon_tensor/io.h"
 
@@ -371,7 +372,10 @@ template <typename T>
 Tensor<T> Tensor<T>::abs() const {
   Tensor result = *this;
   for (auto& val : result.data_) {
-    val = std::abs(val);
+    if constexpr (std::is_signed_v<T>) {
+      val = std::abs(val);
+    }
+    // For unsigned types, abs is a no-op (already non-negative)
   }
   return result;
 }
@@ -625,7 +629,17 @@ Tensor<T> Tensor<T>::returns() const {
 
   Tensor result({data_.size() - 1});
   for (size_t i = 1; i < data_.size(); ++i) {
-    if (std::abs(data_[i - 1]) < 1e-10) {
+    // Check if denominator is effectively zero
+    T denom = data_[i - 1];
+    bool is_zero = false;
+    if constexpr (std::is_signed_v<T>) {
+      is_zero = std::abs(denom) < T(1e-10);
+    } else {
+      // For unsigned types, just check if it's zero
+      is_zero = (denom == T(0));
+    }
+
+    if (is_zero) {
       result.data_[i - 1] = T(0);
     } else {
       result.data_[i - 1] = (data_[i] - data_[i - 1]) / data_[i - 1];
@@ -896,17 +910,17 @@ Tensor<T> Tensor<T>::copy() const {
 
 // Storage operations implementation
 template <typename T>
-void Tensor<T>::save(const std::string& path, Layout layout) const {
+void Tensor<T>::save(std::string_view path, Layout layout) const {
   io::save_tensor(*this, path, layout);
 }
 
 template <typename T>
-Tensor<T> Tensor<T>::load(const std::string& path, bool mmap) {
+Tensor<T> Tensor<T>::load(std::string_view path, bool mmap) {
   return io::load_tensor<T>(path, mmap);
 }
 
 template <typename T>
-Tensor<T> Tensor<T>::create_shared(const std::string& name,
+Tensor<T> Tensor<T>::create_shared(std::string_view name,
                                    const std::vector<size_t>& shape,
                                    Layout layout) {
   // Calculate size needed
@@ -917,7 +931,9 @@ Tensor<T> Tensor<T>::create_shared(const std::string& name,
   size_t size_bytes = total_elements * sizeof(T);
 
   // Create shared memory buffer
-  auto buffer = SharedMemoryBuffer::create(name, size_bytes);
+  std::string name_str(
+      name);  // Convert string_view to string for shm operations
+  auto buffer = SharedMemoryBuffer::create(name_str, size_bytes);
 
   // Create tensor wrapping the shared memory
   Tensor<T> tensor;
@@ -934,9 +950,11 @@ Tensor<T> Tensor<T>::create_shared(const std::string& name,
 }
 
 template <typename T>
-Tensor<T> Tensor<T>::attach_shared(const std::string& name) {
+Tensor<T> Tensor<T>::attach_shared(std::string_view name) {
   // Attach to existing shared memory
-  auto buffer = SharedMemoryBuffer::attach(name);
+  std::string name_str(
+      name);  // Convert string_view to string for shm operations
+  auto buffer = SharedMemoryBuffer::attach(name_str);
 
   // We need to read shape from shared memory header (simplified for now)
   // For a full implementation, we'd store metadata in shared memory
@@ -959,8 +977,10 @@ void Tensor<T>::detach() {
 }
 
 template <typename T>
-void Tensor<T>::destroy_shared(const std::string& name) {
-  SharedMemoryBuffer::destroy(name);
+void Tensor<T>::destroy_shared(std::string_view name) {
+  std::string name_str(
+      name);  // Convert string_view to string for shm operations
+  SharedMemoryBuffer::destroy(name_str);
 }
 
 template <typename T>
