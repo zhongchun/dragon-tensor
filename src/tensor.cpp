@@ -1,4 +1,9 @@
-#pragma once
+#include "dragon_tensor/tensor.h"
+#include <algorithm>
+#include <numeric>
+#include <cmath>
+#include <stdexcept>
+#include <functional>
 
 namespace dragon_tensor {
 
@@ -875,4 +880,12 @@ Tensor<T> Tensor<T>::copy() const {
 }
 
 } // namespace dragon_tensor
+
+// Explicit template instantiation for common types
+namespace dragon_tensor {
+    template class Tensor<float>;
+    template class Tensor<double>;
+    template class Tensor<int32_t>;
+    template class Tensor<int64_t>;
+}
 

@@ -37,19 +37,24 @@ git clone https://github.com/zhongchun/dragon-tensor.git
 cd dragon-tensor
 
 # Standard release build (recommended)
+# Builds C++ library AND generates Python wheel automatically
 ./build.sh
 
-# Debug build
+# Debug build (also generates wheel)
 ./build.sh --debug
 
 # Build and install Python package
 ./build.sh --install
 
-# Build only C++ library (no Python bindings)
+# Build only C++ library (no Python bindings, no wheel)
 ./build.sh --no-python
 
-# Clean build
-./build.sh --clean
+# Build without wheel generation
+./build.sh --no-wheel
+
+# Clean build artifacts (wheels, build dir, Python cache)
+./build.sh --clean              # Cleans and exits
+./build.sh --clean --install    # Cleans, then builds and installs
 
 # Build with tests
 ./build.sh --with-tests
@@ -144,6 +149,12 @@ result = tensor.to_numpy()
 ### C++ Usage
 
 After building, the C++ headers are in `include/dragon_tensor/` and the library is in `build/libdragon_tensor.a`.
+
+**Project Structure:**
+- `include/dragon_tensor/tensor.h` - Header file with Tensor class declarations
+- `src/tensor.cpp` - Implementation file with template instantiations
+- `python/bindings.cpp` - Python bindings using pybind11
+- `build/` - Build output directory
 
 ```cpp
 #include <dragon_tensor/tensor.h>
@@ -295,6 +306,31 @@ result_torch = dt.to_torch(result)
 - `transpose()`: Matrix transpose
 - `matmul(other)`: Matrix multiplication
 
+## Project Structure
+
+```
+dragon-tensor/
+├── include/
+│   └── dragon_tensor/
+│       └── tensor.h              # Tensor class header (declarations)
+├── src/
+│   └── tensor.cpp                 # Implementation with explicit template instantiations
+├── python/
+│   ├── bindings.cpp               # Python bindings (pybind11)
+│   └── dragon_tensor/
+│       ├── __init__.py            # Python package initialization
+│       └── wrapper.py             # Convenience wrapper functions
+├── examples/                      # Example code
+├── CMakeLists.txt                 # CMake build configuration
+├── build.sh                       # Build script
+└── setup.py                       # Python package setup
+```
+
+**Implementation Notes:**
+- The Tensor class is a template class with implementations in `src/tensor.cpp`
+- Explicit template instantiations are provided for: `float`, `double`, `int32_t`, `int64_t`
+- These correspond to `TensorFloat`, `TensorDouble`, `TensorInt`, and `TensorLong` type aliases
+
 ## Performance
 
 Dragon Tensor is optimized for financial computations:
@@ -310,11 +346,13 @@ Dragon Tensor is optimized for financial computations:
 The `build.sh` script automates the entire build process:
 
 ```bash
-./build.sh                    # Standard release build
-./build.sh --debug            # Debug build
+./build.sh                    # Standard release build (builds C++ + generates wheel)
+./build.sh --debug            # Debug build (also generates wheel)
 ./build.sh --install          # Build and install Python package
-./build.sh --clean            # Clean build directory
-./build.sh --no-python        # Build only C++ library
+./build.sh --no-wheel         # Build C++ without generating wheel
+./build.sh --clean            # Clean build artifacts (exits after cleaning)
+./build.sh --clean --install  # Clean then build and install
+./build.sh --no-python        # Build only C++ library (no Python, no wheel)
 ./build.sh --with-tests       # Build with tests
 ./build.sh -j 8               # Use 8 parallel jobs
 ./build.sh --help             # Show all options
@@ -325,7 +363,21 @@ The build script automatically:
 - Installs missing Python packages if needed
 - Configures CMake with correct paths
 - Builds all components in parallel
+- **Generates Python wheel automatically** (unless `--no-wheel` is specified)
 - Reports build status
+
+**Default Behavior:**
+- By default, `./build.sh` builds the C++ library AND generates a Python wheel
+- The wheel is created in `dist/` directory
+- Use `--no-wheel` to disable wheel generation
+- Use `--no-python` to build only C++ library (automatically disables wheel)
+
+**Clean operation** (`--clean`):
+- Removes build directory
+- Removes `dist/` directory (Python wheels and source distributions)
+- Cleans Python artifacts (`*.egg-info`, `__pycache__`, `.pyc`, `.pyo`)
+- If used alone, exits after cleaning (no build)
+- If combined with other options, cleans first then proceeds with build
 
 ### Using CMake Directly
 
@@ -346,13 +398,20 @@ cmake .. \
 ### Using Makefile
 
 ```bash
-make build          # Build the library
+make                # Build C++ library and generate wheel (default, uses build.sh)
+make build          # Build C++ library only (direct cmake, no wheel)
+make build-wheel    # Build C++ library and generate wheel (uses build.sh)
+make wheel          # Generate Python wheel only (requires build first)
 make install        # Install Python package
 make install-dev    # Install in development mode
-make clean          # Clean build files
+make clean          # Clean build directory only
+make clean-all      # Clean build directory, wheels, and Python artifacts
 make examples       # Build and run C++ examples
 make python-examples # Run Python examples
+make help           # Show all available targets
 ```
+
+**Note:** By default, `make` (or `make all`) uses `build.sh` which automatically generates wheels. Use `make build` for direct CMake builds without wheel generation.
 
 ## Running Examples
 
@@ -424,6 +483,36 @@ pip install .
 # or with build script
 ./build.sh --install
 ```
+
+### Building Python Wheel
+
+**Note:** The build script automatically generates Python wheels by default when Python bindings are enabled. No additional steps needed!
+
+```bash
+# Wheel is automatically generated when running:
+./build.sh
+
+# The wheel will be created in dist/ directory
+# Example: dist/dragon_tensor-0.0.1-cp312-cp312-macosx_15_0_x86_64.whl
+```
+
+To build a wheel manually (if needed):
+
+```bash
+# Install build tools (if not already installed)
+pip install build wheel
+
+# Build wheel
+python3 -m build --wheel
+
+# Install from wheel
+pip install dist/dragon_tensor-*.whl
+```
+
+**Build Options:**
+- `./build.sh` - Builds C++ library and generates wheel automatically
+- `./build.sh --no-wheel` - Builds C++ library without generating wheel
+- `./build.sh --clean` - Removes dist/ directory with all wheels
 
 ## Contributing
 

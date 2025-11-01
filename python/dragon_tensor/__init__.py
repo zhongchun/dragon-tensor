@@ -32,7 +32,7 @@ try:
     except ImportError:
         pass
     
-    __version__ = "1.0.0"
+    __version__ = "0.0.1"
     __all__ = [
         "TensorFloat",
         "TensorDouble", 

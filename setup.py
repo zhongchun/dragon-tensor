@@ -26,7 +26,7 @@ ext_modules = [
 
 setup(
     name="dragon-tensor",
-    version="1.0.0",
+    version="0.0.1",
     author="Dragon Tensor Contributors",
     description="High-performance tensor library for financial data analysis",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",

@@ -155,5 +155,7 @@ using TensorLong = Tensor<int64_t>;
 
 } // namespace dragon_tensor
 
-#include "tensor_impl.h"
+// Template implementations are in src/tensor.cpp
+// Explicit instantiations are provided for Tensor<float>, Tensor<double>, 
+// Tensor<int32_t>, and Tensor<int64_t>
 

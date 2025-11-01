@@ -18,6 +18,7 @@ BUILD_PYTHON_BINDINGS="ON"
 BUILD_TESTS="OFF"
 BUILD_EXAMPLES="ON"
 INSTALL="OFF"
+BUILD_WHEEL="ON"  # Build wheel by default
 PYTHON_EXECUTABLE=""
 
 # Function to print colored messages
@@ -46,11 +47,13 @@ OPTIONS:
     -t, --build-type TYPE   Build type: Debug, Release, RelWithDebInfo, MinSizeRel
     -b, --build-dir DIR     Build directory (default: build)
     --no-python             Disable Python bindings
+    --no-wheel              Disable wheel building (default: enabled)
     --with-tests            Enable building tests
     --no-examples           Disable building examples
     -i, --install           Install after building
     -p, --python PATH       Python executable path
-    --clean                 Clean build directory before building
+    --clean                 Clean build directory, wheels, and Python artifacts
+                           (exits after cleaning if no other options specified)
     -j, --jobs N           Number of parallel jobs (default: auto)
 
 EXAMPLES:
@@ -66,6 +69,7 @@ EOF
 # Parse command line arguments
 CLEAN_BUILD=false
 JOBS=""
+HAS_BUILD_OPTIONS=false  # Track if any build-related options were specified
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -75,10 +79,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--debug)
             BUILD_TYPE="Debug"
+            HAS_BUILD_OPTIONS=true
             shift
             ;;
         -t|--build-type)
             BUILD_TYPE="$2"
+            HAS_BUILD_OPTIONS=true
             shift 2
             ;;
         -b|--build-dir)
@@ -87,22 +93,33 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-python)
             BUILD_PYTHON_BINDINGS="OFF"
+            BUILD_WHEEL="OFF"
+            HAS_BUILD_OPTIONS=true
+            shift
+            ;;
+        --no-wheel)
+            BUILD_WHEEL="OFF"
+            HAS_BUILD_OPTIONS=true
             shift
             ;;
         --with-tests)
             BUILD_TESTS="ON"
+            HAS_BUILD_OPTIONS=true
             shift
             ;;
         --no-examples)
             BUILD_EXAMPLES="OFF"
+            HAS_BUILD_OPTIONS=true
             shift
             ;;
         -i|--install)
             INSTALL="ON"
+            HAS_BUILD_OPTIONS=true
             shift
             ;;
         -p|--python)
             PYTHON_EXECUTABLE="$2"
+            HAS_BUILD_OPTIONS=true
             shift 2
             ;;
         --clean)
@@ -111,6 +128,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -j|--jobs)
             JOBS="$2"
+            HAS_BUILD_OPTIONS=true
             shift 2
             ;;
         *)
@@ -121,7 +139,45 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check dependencies
+# Clean operation
+if [ "$CLEAN_BUILD" = true ]; then
+    print_info "Cleaning build artifacts..."
+    
+    # Clean build directory
+    if [ -d "$BUILD_DIR" ]; then
+        print_info "Removing build directory: $BUILD_DIR"
+        rm -rf "$BUILD_DIR"
+    fi
+    
+    # Clean Python build artifacts
+    if [ -d "dist" ]; then
+        print_info "Removing dist directory (wheels and sdist)"
+        rm -rf dist
+    fi
+    
+    if [ -d "build" ] && [ "$BUILD_DIR" != "build" ]; then
+        # Additional build directory cleanup
+        print_info "Removing additional build artifacts"
+        rm -rf build/bdist.* build/lib.* build/temp.*
+    fi
+    
+    # Clean Python egg-info and other artifacts
+    find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete 2>/dev/null || true
+    find . -type f -name "*.pyo" -delete 2>/dev/null || true
+    
+    print_info "Clean completed successfully!"
+    
+    # If only --clean was specified (no build options), exit here
+    if [ "$HAS_BUILD_OPTIONS" = false ]; then
+        echo ""
+        print_info "No build options specified. Exiting after clean."
+        exit 0
+    fi
+fi
+
+# Check dependencies (only if we're building)
 print_info "Checking dependencies..."
 
 # Check for CMake
@@ -178,12 +234,6 @@ if [ "$BUILD_PYTHON_BINDINGS" = "ON" ] && [ -n "$PYTHON_EXECUTABLE" ]; then
         exit 1
     fi
     print_info "Found pybind11 at: $PYBIND11_DIR"
-fi
-
-# Clean build directory if requested
-if [ "$CLEAN_BUILD" = true ]; then
-    print_info "Cleaning build directory: $BUILD_DIR"
-    rm -rf "$BUILD_DIR"
 fi
 
 # Create build directory
@@ -253,6 +303,31 @@ if [ "$BUILD_EXAMPLES" = "ON" ]; then
     fi
 fi
 
+# Build wheel if requested and Python bindings are enabled
+if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
+    echo ""
+    print_info "Building Python wheel..."
+    cd ..
+    
+    # Check for build tools
+    if ! $PYTHON_EXECUTABLE -m pip show build > /dev/null 2>&1; then
+        print_warning "build package not found. Installing..."
+        $PYTHON_EXECUTABLE -m pip install build wheel --quiet
+    fi
+    
+    # Build wheel
+    $PYTHON_EXECUTABLE -m build --wheel > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1)
+        if [ -n "$WHEEL_FILE" ]; then
+            print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
+        fi
+    else
+        print_warning "Wheel building failed, but C++ build succeeded"
+    fi
+    cd "$BUILD_DIR"
+fi
+
 # Install if requested
 if [ "$INSTALL" = "ON" ]; then
     echo ""
@@ -272,5 +347,11 @@ print_info "Build script completed!"
 print_info "To run the C++ example: ./$BUILD_DIR/examples/example_basic"
 if [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
     print_info "To test Python: python examples/basic_usage.py"
+    if [ "$BUILD_WHEEL" = "ON" ]; then
+        WHEEL_FILE=$(ls -t ../dist/*.whl 2>/dev/null | head -1 2>/dev/null)
+        if [ -n "$WHEEL_FILE" ]; then
+            print_info "Wheel available: dist/$(basename $WHEEL_FILE)"
+        fi
+    fi
 fi
 

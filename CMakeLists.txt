@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DragonTensor VERSION 1.0.0 LANGUAGES CXX)
+project(DragonTensor VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,21 +54,10 @@ if(BUILD_PYTHON_BINDINGS)
     endif()
 endif()
 
-# Core library (header-only, but we need at least one source file for STATIC library)
-# Create a dummy source file if src directory doesn't exist
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src")
-    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/src/dummy.cpp" "// Dummy source file for static library\n")
-endif()
-
+# Core library - implementation is in src/tensor.cpp
 file(GLOB_RECURSE CORE_SOURCES
     "src/*.cpp"
 )
-
-# If no source files found, use dummy
-if(NOT CORE_SOURCES)
-    set(CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/dummy.cpp")
-endif()
 
 add_library(dragon_tensor STATIC
     ${CORE_SOURCES}
@@ -76,6 +65,7 @@ add_library(dragon_tensor STATIC
 
 target_include_directories(dragon_tensor PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>
 )
 
