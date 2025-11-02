@@ -6,7 +6,9 @@ This document defines the design and requirements for **Dragon-Tensor**, a high-
 ---
 
 ## 2. Objectives
+
 ### Functional Requirements
+
 1. **General Tensor Support**: Handle 1D (vectors), 2D (matrices), and N-dimensional tensors for financial data.
 2. **Interoperability**: Enable zero-copy conversion with:
    - **NumPy ndarray** (for analytics and simulation workflows)
@@ -22,6 +24,7 @@ This document defines the design and requirements for **Dragon-Tensor**, a high-
 6. **Device Abstraction**: CPU-first design with GPU extensibility for risk simulations.
 
 ### Non-Functional Requirements
+
 - **Zero-Copy** data sharing
 - **High Throughput** for time-critical analytics
 - **Extensible** modular design
@@ -32,7 +35,9 @@ This document defines the design and requirements for **Dragon-Tensor**, a high-
 ---
 
 ## 3. Architecture Overview
+
 ### 3.1 Layered Structure
+
 | Layer | Role | Description |
 |--------|------|-------------|
 | **Buffer Layer** | Memory Management | Manages CPU/GPU memory allocation, file-backed and shared-memory buffers. |
@@ -42,6 +47,7 @@ This document defines the design and requirements for **Dragon-Tensor**, a high-
 | **Python API Layer** | User Interface | Exposes a simple, intuitive API for analysts. |
 
 ### 3.2 Data Model
+
 Each `Tensor` object encapsulates:
 - `Buffer* buffer`: Underlying memory block (RAM, mmap, or shared memory).
 - `std::vector<size_t> shape`: Dimensions (e.g., [days, assets]).
@@ -54,6 +60,7 @@ Each `Tensor` object encapsulates:
 ---
 
 ## 4. Simplified Python API Design
+
 Dragon-Tensor provides a **minimal, clean Python API**, now extended to handle persistent and shared-memory tensors.
 
 ### 4.1 Python API Overview
@@ -82,6 +89,7 @@ torch_view = t_shared.to_torch()
 ```
 
 ### 4.2 Python API Reference
+
 | Function | Description | Zero-Copy | Return |
 |-----------|--------------|------------|---------|
 | `from_numpy(array)` | Wrap NumPy ndarray | ✅ | `Tensor` |
@@ -96,7 +104,9 @@ torch_view = t_shared.to_torch()
 ---
 
 ## 5. Storage Layer Design
+
 ### 5.1 File-Based Storage
+
 - **Row-wise layout**: Fast sequential access for time-series data.
 - **Column-wise layout**: Optimized for per-asset or per-factor queries.
 - **Binary format**: Lightweight header (metadata + shape + dtype) followed by contiguous tensor data.
@@ -113,6 +123,7 @@ struct TensorHeader {
 ```
 
 ### 5.2 Shared Memory Storage
+
 - Uses POSIX shared memory (`shm_open`, `mmap`) or System V (`shmget`) for cross-process access.
 - Shared tensors support both **row-major** and **column-major** layouts.
 - Synchronization (optional) via file locks or atomic counters.
@@ -126,7 +137,9 @@ Tensor Tensor::attach_shared(const std::string& name);
 ---
 
 ## 6. Core API (C++)
+
 ### 6.1 Construction
+
 ```cpp
 Tensor(std::shared_ptr<Buffer> buffer,
        std::vector<size_t> shape,
@@ -137,6 +150,7 @@ Tensor(std::shared_ptr<Buffer> buffer,
 ```
 
 ### 6.2 Storage APIs
+
 ```cpp
 void save(const std::string& path, Layout layout = Layout::RowMajor) const;
 static Tensor load(const std::string& path, bool mmap = true);
@@ -147,6 +161,7 @@ static Tensor attach_shared(const std::string& name);
 ---
 
 ## 7. Data Type System
+
 Supported types for finance and analytics:
 ```cpp
 enum class DType { FLOAT32, FLOAT64, INT32, INT64, UINT8 };
@@ -156,6 +171,7 @@ Future: `DECIMAL128`, fixed-point arithmetic for precise currency operations.
 ---
 
 ## 8. Example Usage
+
 ```python
 import dragon_tensor as dt
 import numpy as np
@@ -175,6 +191,7 @@ t_shared = dt.create_shared("risk_shared", shape=(252, 500), dtype="float32", la
 ---
 
 ## 9. Financial Analysis Extensions
+
 - **Rolling Window Views** for backtesting
 - **Covariance/Correlation Matrices** for portfolio risk models
 - **Batch Factor Computation** for cross-asset analysis
@@ -184,6 +201,7 @@ t_shared = dt.create_shared("risk_shared", shape=(252, 500), dtype="float32", la
 ---
 
 ## 10. Performance Highlights
+
 | Optimization | Benefit |
 |--------------|----------|
 | Zero-Copy Interop | Eliminates data transfer overhead |
@@ -196,6 +214,7 @@ t_shared = dt.create_shared("risk_shared", shape=(252, 500), dtype="float32", la
 ---
 
 ## 11. Future Enhancements
+
 1. **GPU/Device Support** for CUDA/HIP.
 2. **Parallelism** (OpenMP or thread pool).
 3. **Fixed-Point Arithmetic** for currency-safe precision.
@@ -206,6 +225,7 @@ t_shared = dt.create_shared("risk_shared", shape=(252, 500), dtype="float32", la
 ---
 
 ## 12. Summary
+
 **Dragon-Tensor** now provides an **end-to-end analytical tensor infrastructure** for finance:
 - High-performance in-memory operations.
 - Zero-copy integration with NumPy and PyTorch.

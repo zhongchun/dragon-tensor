@@ -55,6 +55,7 @@ A high-performance tensor library written in C++17, designed specifically for fi
 ### Python Usage
 
 **Note:** After building, install the Python package:
+
 ```bash
 pip install .
 # Or if you used build.sh with --install, it's already installed
@@ -111,11 +112,13 @@ int main() {
 ```
 
 Compile with:
+
 ```bash
 g++ -std=c++17 -I./include your_program.cpp -L./build -ldragon_tensor -o your_program
 ```
 
 Or run the example:
+
 ```bash
 ./build/examples/example_basic
 ```
@@ -169,12 +172,14 @@ cd dragon-tensor
 ```
 
 **Default Behavior:**
+
 - By default, `./build.sh` builds the C++ library AND generates a Python wheel
 - The wheel is created in `dist/` directory
 - Use `--no-wheel` to disable wheel generation
 - Use `--no-python` to build only C++ library (automatically disables wheel)
 
 **Clean operation** (`--clean`):
+
 - Removes build directory
 - Removes `dist/` directory (Python wheels and source distributions)
 - Cleans Python artifacts (`*.egg-info`, `__pycache__`, `.pyc`, `.pyo`)
@@ -182,6 +187,7 @@ cd dragon-tensor
 - If combined with other options, cleans first then proceeds with build
 
 The build script automatically:
+
 - Checks for required dependencies (CMake, Python, pybind11, NumPy)
 - Installs missing Python packages if needed
 - Configures CMake with correct paths
@@ -190,7 +196,7 @@ The build script automatically:
 
 ### Building from Source
 
-#### Using CMake directly:
+#### Using CMake directly
 
 ```bash
 # Create build directory
@@ -210,7 +216,7 @@ cd ..
 pip install .
 ```
 
-#### CMake Build Options:
+#### CMake Build Options
 
 ```bash
 # Build the C++ library only
@@ -314,7 +320,7 @@ The project uses **Google C++ Style Guide** as the default coding style, enforce
 ./format.sh -P
 ```
 
-#### Using Makefile
+#### Using Makefile for Formatting
 
 ```bash
 make format         # Format all files
@@ -330,6 +336,7 @@ make lint           # Check formatting (alias for format-check)
 **Note**: When `clang-format` is run in this project (including via IDEs and editors), it will automatically use the Google style configuration from `.clang-format`.
 
 The format script automatically:
+
 - Formats C++ files using `clang-format` with Google style
 - Formats Python files using `black`
 - Installs missing Python formatting tools if needed
@@ -497,6 +504,7 @@ dt.TensorDouble.destroy_shared("risk_shared")
 ## API Reference
 
 For complete API documentation, see:
+
 - **[C++ API Reference](docs/api_cpp.md)** - Complete C++ API with detailed method signatures
 - **[Python API Reference](docs/api_python.md)** - Complete Python API with examples
 
@@ -609,7 +617,7 @@ graph TB
 
 **Alternative Text Diagram:**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Python API Layer                         │
 │  (bindings.cpp, wrapper.py, __init__.py)                   │
@@ -685,7 +693,7 @@ graph TB
 
 ### Project Structure
 
-```
+```text
 dragon-tensor/
 ├── include/
 │   └── dragon_tensor/
@@ -712,6 +720,7 @@ dragon-tensor/
 ```
 
 **Implementation Notes:**
+
 - The Tensor class is a template class with implementations in `src/tensor.cpp`
 - Explicit template instantiations are provided for: `float`, `double`, `int32_t`, `int64_t`, `uint8_t`
 - These correspond to `TensorFloat`, `TensorDouble`, `TensorInt`, `TensorLong` type aliases
@@ -765,6 +774,7 @@ python3 examples/integration_examples.py
 ### pybind11 not found
 
 If CMake cannot find pybind11:
+
 ```bash
 pip install pybind11
 ```
@@ -774,6 +784,7 @@ The build script will automatically detect and use pybind11 from Python if insta
 ### NumPy not found
 
 The build script will automatically install NumPy if missing. For manual installation:
+
 ```bash
 pip install numpy
 ```
@@ -795,6 +806,7 @@ python3 -c "import sys; sys.path.insert(0, './build'); import dragon_tensor"
 ```
 
 For permanent use, install the package:
+
 ```bash
 pip install .
 # or with build script
@@ -806,6 +818,7 @@ pip install .
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 Before submitting:
+
 1. Run `make format` or `./format.sh` to ensure code is properly formatted
 2. Run `make verify` to verify the build works
 3. Ensure all tests pass (`make test`)
@@ -814,6 +827,7 @@ Before submitting:
 ## Version History
 
 ### v0.2 (Current)
+
 - **Storage Layer**: File I/O with versioned binary format, memory-mapped I/O
 - **Shared Memory**: POSIX shared memory support for cross-process tensor sharing
 - **Buffer Abstraction**: Flexible memory management (in-memory, mmap, shared memory)
@@ -822,6 +836,7 @@ Before submitting:
 - **Zero-Copy Improvements**: Enhanced zero-copy conversions with NumPy and PyTorch
 
 ### v0.1
+
 - Core tensor operations
 - Financial analysis functions
 - NumPy/Pandas/PyTorch integration
@@ -832,10 +847,12 @@ Before submitting:
 Complete documentation is available in the [`docs/`](docs/) directory:
 
 ### API Documentation
+
 - **[C++ API Reference](docs/api_cpp.md)** - Comprehensive C++ API with method signatures, parameters, and examples
 - **[Python API Reference](docs/api_python.md)** - Complete Python API with usage examples and type conversion guide
 
 ### Design Documents
+
 - **[Requirements Document v0.1](docs/requirements_doc_0.1.md)** - Initial design and requirements specification
 - **[Requirements Document v0.2](docs/requirements_doc_0.2.md)** - Enhanced design with storage layer, buffer abstraction, and shared memory support
 
