@@ -1,6 +1,6 @@
 # Dragon Tensor
 
-A high-performance tensor library written in C++17, designed specifically for financial data processing and quantitative analysis. Dragon Tensor provides seamless zero-copy integration with NumPy, Pandas, and PyTorch ecosystems, along with persistent storage and shared-memory support for high-performance data pipelines.
+A high-performance tensor library written in C++17, designed specifically for financial data processing and quantitative analysis. Dragon Tensor provides seamless zero-copy integration with NumPy, Pandas, PyTorch, and Apache Arrow ecosystems, along with persistent storage and shared-memory support for high-performance data pipelines.
 
 **Repository**: [https://github.com/zhongchun/dragon-tensor](https://github.com/zhongchun/dragon-tensor)
 
@@ -39,10 +39,12 @@ A high-performance tensor library written in C++17, designed specifically for fi
 - **Financial Operations**: Built-in support for returns, rolling windows, correlation, and covariance
 - **Multi-dimensional Tensors**: Support for 1D, 2D, and higher-dimensional tensors
 - **Statistical Operations**: Mean, std, variance, min, max with optional axis operations
-- **Zero-Copy Interoperability**: Efficient zero-copy conversion with NumPy and PyTorch
+- **Zero-Copy Interoperability**: Efficient zero-copy conversion with NumPy, PyTorch, and Apache Arrow
 - **NumPy Integration**: Seamless conversion to/from NumPy arrays (zero-copy when possible)
 - **Pandas Integration**: Direct conversion from/to Pandas Series and DataFrames
 - **PyTorch Integration**: Convert to/from PyTorch tensors (zero-copy via DLPack)
+- **Apache Arrow Integration**: Zero-copy conversion to/from Arrow Arrays and RecordBatches
+- **Parquet File Support**: Save/load tensors in Parquet format with zero-copy memory mapping
 - **Matrix Operations**: Matrix multiplication, transpose, and more
 - **Persistent Storage**: Save/load tensors to disk with versioned binary format
 - **Memory-Mapped I/O**: On-demand access to large datasets via memory mapping
@@ -80,6 +82,12 @@ rolling_mean = tensor.rolling_mean(window=3)
 
 # Convert back to numpy (zero-copy)
 result = tensor.to_numpy()
+
+# Arrow integration (zero-copy)
+import pyarrow as pa
+arrow_arr = pa.array([1.0, 2.0, 3.0, 4.0, 5.0], type=pa.float64())
+arrow_tensor = dt.from_arrow(arrow_arr)  # Zero-copy conversion
+result_arrow = arrow_tensor.to_arrow()  # Convert back (zero-copy)
 ```
 
 ### C++ Usage
@@ -134,6 +142,7 @@ Or run the example:
 - NumPy (will be installed automatically if missing)
 - Pandas (optional, for pandas integration)
 - PyTorch (optional, for torch integration)
+- Apache Arrow / pyarrow (optional, for Arrow/Parquet integration)
 
 ### Quick Build with Script
 
@@ -407,11 +416,41 @@ result = dt_tensor.rolling_mean(window=10)
 result_torch = result.to_torch()
 ```
 
+#### Integration with Apache Arrow
+
+```python
+import pyarrow as pa
+import dragon_tensor as dt
+import numpy as np
+
+# Create Arrow Array
+arrow_array = pa.array([100.0, 102.0, 101.0, 105.0, 108.0], type=pa.float64())
+
+# Convert to Dragon Tensor (zero-copy when compatible)
+tensor = dt.from_arrow(arrow_array)
+
+# Perform financial calculations
+returns = tensor.returns()
+rolling_mean = tensor.rolling_mean(window=3)
+
+# Convert back to Arrow (zero-copy)
+result_arrow = returns.to_arrow()
+
+# Work with RecordBatches
+data = np.random.randn(252, 1000).astype(np.float64)
+tensor_2d = dt.from_numpy_double(data)
+arrow_array_2d = tensor_2d.to_arrow()
+
+# Create RecordBatch from multiple Arrow arrays
+batch = pa.RecordBatch.from_arrays([arrow_array, arrow_array_2d], ["prices", "data"])
+```
+
 ### Advanced: Persistent Storage
 
 ```python
 import dragon_tensor as dt
 import numpy as np
+import pyarrow as pa
 
 # Create and save tensor
 prices = np.random.randn(252, 1000).astype(np.float64)
@@ -425,6 +464,13 @@ mapped_tensor = dt.TensorDouble.load("prices.dt", mmap=True)
 
 # Access data without loading full file into memory
 np_view = mapped_tensor.to_numpy()  # Zero-copy view
+
+# Save to Parquet via Arrow (columnar format for analytics)
+tensor.save_parquet("prices.parquet")
+
+# Load from Parquet with memory mapping
+parquet_tensor = dt.load_parquet("prices.parquet", mmap=True)
+arrow_view = parquet_tensor.to_arrow()  # Zero-copy Arrow view
 
 # Force write-back for file-backed tensors
 mapped_tensor.flush()
@@ -500,6 +546,13 @@ For complete API documentation, see:
 - `detach()`: Unmap shared-memory tensor
 - `destroy_shared(name)`: Destroy shared-memory segment (static method)
 - `flush()`: Force write-back for file-backed tensors
+
+#### Arrow/Parquet Operations (v0.3)
+
+- `save_parquet(path)`: Save tensor to Parquet file via Arrow (zero-copy when compatible)
+- `load_parquet(path, mmap=True)`: Load tensor from Parquet file with optional memory mapping
+- `from_arrow(arrow_array)`: Create tensor from Arrow Array (zero-copy when compatible)
+- `to_arrow()`: Convert tensor to Arrow Array (zero-copy when possible)
 
 ## Project Structure & Architecture
 
@@ -744,11 +797,12 @@ Dragon Tensor is optimized for financial computations:
 
 - **Memory Efficient**: Minimal overhead compared to raw arrays
 - **Fast Operations**: Vectorized operations where possible
-- **Zero-copy Conversions**: Efficient zero-copy conversion between NumPy/Pandas/PyTorch formats
+- **Zero-copy Conversions**: Efficient zero-copy conversion between NumPy, Pandas, PyTorch, and Apache Arrow formats
 - **Memory-Mapped I/O**: On-demand access to large datasets without full load
 - **Shared Memory**: Ultra-low latency inter-process access for real-time analytics
 - **Layout Optimization**: Row-major and column-major layouts for query-optimized access patterns
 - **Deterministic Memory Management**: Explicit buffer lifecycle control via Buffer abstraction
+- **Arrow/Parquet Support**: Native integration with Apache Arrow for columnar analytics and Parquet file format
 
 ## Running Examples
 
@@ -846,7 +900,9 @@ To update the version, simply edit `VERSION.txt` - all build systems will automa
 
 ### v0.3 (Current)
 
-- **Apache Arrow Integration**: Zero-copy conversion with Arrow/Parquet formats
+- **Apache Arrow Integration**: Full zero-copy conversion to/from Arrow Arrays and RecordBatches
+- **Parquet Support**: Save/load tensors in Parquet format with memory mapping support
+- **Zero-Copy Arrow Operations**: Efficient data exchange with Arrow ecosystem without memory duplication
 - **5-Layer Architecture**: Refined architecture with Backend Abstraction Layer
 - **Allocator Abstraction**: Flexible memory management strategies
 - **Enhanced Project Structure**: Modular organization with interop, backends, and utilities
@@ -870,7 +926,7 @@ To update the version, simply edit `VERSION.txt` - all build systems will automa
 
 ## Documentation
 
-Complete documentation is available in the [`docs/`](docs/) directory. See the [Documentation Index](docs/README.md) for an overview.
+Complete documentation is available in the [`docs/`](docs/README.md) directory. See the [Documentation Index](docs/README.md) for an overview.
 
 ### Quick Links
 

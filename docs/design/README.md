@@ -43,7 +43,7 @@ This ensures version consistency across all components.
 
 ## Related Documentation
 
-- [API Reference](../api/) - C++ and Python API documentation
-- [Performance Guide](../performance/) - Optimization strategies
+- [API Reference](../api/README.md) - C++ and Python API documentation
+- [Performance Guide](../performance/optimizations.md) - Optimization strategies
 - [Main README](../README.md) - Documentation index
 
