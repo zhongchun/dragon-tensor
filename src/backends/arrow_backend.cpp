@@ -48,9 +48,4 @@ void ArrowBackend::flush() {
   }
 }
 
-std::shared_ptr<Backend> create_arrow_backend(std::string_view path,
-                                              bool read_only) {
-  return std::make_shared<ArrowBackend>(path, read_only);
-}
-
 }  // namespace dragon_tensor

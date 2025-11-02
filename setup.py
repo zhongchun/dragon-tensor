@@ -13,12 +13,6 @@ def get_version():
         return f.read().strip()
 
 
-# Read requirements
-def read_requirements():
-    with open("requirements.txt", "r") as f:
-        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
-
-
 # All C++ source files needed to build the extension
 # Note: interop sources require pybind11, so they're only compiled with Python bindings
 core_sources = [
@@ -93,33 +87,10 @@ ext_modules = [
     ),
 ]
 
+# Most metadata is now in pyproject.toml
+# Only C++ extension-specific configuration remains here
 setup(
-    name="dragon-tensor",
-    version=get_version(),
-    author="Dragon Tensor Contributors",
-    description="High-performance tensor library for financial data analysis",
-    long_description=open("README.md").read() if os.path.exists("README.md") else "",
-    long_description_content_type="text/markdown",
+    version=get_version(),  # Override version from pyproject.toml with VERSION.txt
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
-    packages=["dragon_tensor"],
-    package_dir={"": "python"},
-    zip_safe=False,
-    python_requires=">=3.7",
-    install_requires=read_requirements(),
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Financial and Insurance Industry",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: C++",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Topic :: Scientific/Engineering",
-        "Topic :: Office/Business :: Financial",
-    ],
 )
