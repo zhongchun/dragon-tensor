@@ -505,144 +505,153 @@ For complete API documentation, see:
 
 ### Architecture Overview
 
-Dragon Tensor follows a layered architecture design that separates concerns from memory management to user interfaces:
+Dragon Tensor follows a **5-layer architecture** (as per `requirements_doc_0.3.md`) that separates concerns from user interfaces to storage backends:
 
 ```mermaid
 graph TB
-    subgraph "Python API Layer"
-        PY[Python Interface<br/>bindings.cpp, wrapper.py]
+    subgraph "1. Python API Layer"
+        PY[Python Interface<br/>pybind11 bindings]
+        PY_METHODS[Factory Methods<br/>Operations<br/>Storage APIs]
+        PY --> PY_METHODS
     end
     
-    subgraph "Interop Layer"
-        NP[NumPy Integration<br/>Zero-copy conversion]
-        PT[PyTorch Integration<br/>DLPack protocol]
-        PD[Pandas Integration<br/>Series/DataFrame]
+    subgraph "2. Interop Layer"
+        NP[NumPyInterop<br/>Buffer Protocol]
+        PT[TorchInterop<br/>DLPack]
+        AR[ArrowInterop<br/>Arrow Memory]
+        IC[Zero-Copy Conversion]
+        NP --> IC
+        PT --> IC
+        AR --> IC
     end
     
-    subgraph "Tensor Core"
-        TC[Tensor Class<br/>Shape, Strides, DType, Layout]
-        OPS[Operations<br/>Math, Stats, Finance]
+    subgraph "3. Tensor Core"
+        TC[Tensor<T><br/>Shape, DType, Strides]
+        TC_OPS[Operations<br/>Math, Stats, Finance]
+        TC --> TC_OPS
     end
     
-    subgraph "Storage Layer"
-        FI[File I/O<br/>Save/Load with versioning]
-        MM[Memory-Mapped I/O<br/>On-demand access]
-        SM[Shared Memory<br/>Cross-process access]
-        CH[Checksum & Metadata<br/>File format validation]
+    subgraph "4. Buffer Layer"
+        BF[Buffer<br/>Memory Management]
+        AL[Allocators<br/>Heap, Pool, Aligned]
+        BF --> AL
     end
     
-    subgraph "Buffer Layer"
-        MB[MemoryBuffer<br/>In-memory allocation]
-        MMB[MMapBuffer<br/>File-backed memory]
-        SMB[SharedMemoryBuffer<br/>POSIX shared memory]
+    subgraph "5. Backend Abstraction Layer"
+        BE[Backend Interface]
+        MB[MemoryBackend]
+        MM[MMapBackend]
+        SM[SharedMemoryBackend]
+        AB[ArrowBackend]
+        BE --> MB
+        BE --> MM
+        BE --> SM
+        BE --> AB
     end
     
-    PY --> NP
-    PY --> PT
-    PY --> PD
-    NP --> TC
-    PT --> TC
-    PD --> TC
-    TC --> OPS
-    TC --> FI
-    TC --> SM
-    FI --> MM
-    FI --> CH
-    SM --> SMB
-    MM --> MMB
-    TC --> MB
-    MB --> MMB
-    MB --> SMB
+    PY_METHODS --> NP
+    PY_METHODS --> PT
+    PY_METHODS --> AR
+    IC --> TC
+    TC --> BF
+    BF --> BE
     
     style PY fill:#e1f5ff
-    style NP fill:#fff4e1
-    style PT fill:#fff4e1
-    style PD fill:#fff4e1
+    style IC fill:#fff4e1
     style TC fill:#e8f5e9
-    style OPS fill:#e8f5e9
-    style FI fill:#f3e5f5
-    style MM fill:#f3e5f5
-    style SM fill:#f3e5f5
-    style MB fill:#fce4ec
-    style MMB fill:#fce4ec
-    style SMB fill:#fce4ec
+    style BF fill:#fce4ec
+    style BE fill:#f3e5f5
 ```
 
 **Alternative Text Diagram:**
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Python API Layer                         │
-│  (bindings.cpp, wrapper.py, __init__.py)                   │
+│             1. Python API Layer                             │
+│  (bindings.cpp, __init__.py, io.py, finance.py)             │
+│  - Factory methods: from_numpy(), from_torch(), from_arrow() │
+│  - Operations: mathematical, statistical, financial       │
+│  - Storage APIs: save(), load(), create_shared(), etc.        │
 └────────────────────┬────────────────────────────────────────┘
                      │
 ┌─────────────────────────────────────────────────────────────┐
-│                    Interop Layer                            │
+│             2. Interop Layer                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │   NumPy     │  │   PyTorch   │  │   Pandas    │         │
-│  │  (zero-copy)│  │   (DLPack)  │  │ Series/DF   │         │
+│  │ NumPyInterop│  │TorchInterop │  │ArrowInterop│         │
+│  │ Buffer      │  │   DLPack    │  │Arrow Memory│         │
+│  │  Protocol   │  │             │  │            │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
+│  Responsibilities: Zero-copy conversion, view semantics    │
 └────────────────────┬────────────────────────────────────────┘
                      │
 ┌─────────────────────────────────────────────────────────────┐
-│                    Tensor Core                              │
+│             3. Tensor Core                                   │
 │  ┌────────────────────────────────────────────────────┐    │
-│  │  Tensor Class: Shape, Strides, DType, Layout       │    │
+│  │  Tensor<T>: Shape, DType, Strides, Layout         │    │
 │  └────────────────────────────────────────────────────┘    │
 │  ┌────────────────────────────────────────────────────┐    │
-│  │  Operations: Math, Stats, Finance, Matrix Ops      │    │
+│  │  Operations: Math, Stats, Finance, Matrix Ops     │    │
 │  └────────────────────────────────────────────────────┘    │
-└────────┬────────────────────────────┬──────────────────────┘
-         │                            │
-┌─────────────────────────────────────┴──────────────────────┐
-│                    Storage Layer                            │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌─────────────────────────────────────────────────────────────┐
+│             4. Buffer Layer                                 │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Buffer: MemoryBuffer, MMapBuffer, SharedMemBuffer │    │
+│  └────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Allocators: HeapAllocator, PoolAllocator,         │    │
+│  │             AlignedAllocator                      │    │
+│  └────────────────────────────────────────────────────┘    │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌─────────────────────────────────────────────────────────────┐
+│         5. Backend Abstraction Layer                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   File I/O   │  │ Memory-Mapped│  │   Shared     │     │
-│  │  (versioned) │  │      I/O      │  │   Memory     │     │
+│  │ MemoryBackend│  │  MMapBackend  │  │SharedMemBack │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 │  ┌────────────────────────────────────────────────────┐    │
-│  │  Checksum & Metadata (file format validation)     │    │
+│  │           ArrowBackend (Arrow/Parquet)             │    │
 │  └────────────────────────────────────────────────────┘    │
-└────────┬────────────────────────────┬──────────────────────┘
-         │                            │
-┌─────────────────────────────────────┴──────────────────────┐
-│                    Buffer Layer                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  MemoryBuffer│  │  MMapBuffer  │  │SharedMemory │     │
-│  │ (heap alloc)  │  │(file-backed) │  │   Buffer    │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│  Unified interface for all storage backends                │
 └─────────────────────────────────────────────────────────────┘
-         │                            │
-    [Memory]                    [OS File/Shared Memory]
 ```
 
 **Layer Descriptions:**
 
-1. **Buffer Layer** (Bottom): Manages memory allocation and lifecycle
-   - `MemoryBuffer`: Standard heap-allocated memory
-   - `MMapBuffer`: Memory-mapped file-backed buffers
-   - `SharedMemoryBuffer`: POSIX shared memory for cross-process access
+1. **Python API Layer** (Top): User-facing interface
+   - High-level Python bindings via pybind11
+   - Factory methods: `from_numpy()`, `from_torch()`, `from_arrow()`
+   - Operations: mathematical, statistical, financial
+   - Storage APIs: `save()`, `load()`, `create_shared()`, etc.
+   - Context managers for resource lifecycle
 
-2. **Storage Layer**: Handles persistence and shared access
-   - File I/O with versioned binary format
-   - Memory-mapped I/O for large datasets
-   - Shared memory lifecycle management
-   - Checksum validation and metadata
+2. **Interop Layer**: Ecosystem integration with zero-copy conversion
+   - **NumPyInterop**: Zero-copy via array interface protocol
+   - **TorchInterop**: DLPack protocol support for tensor sharing
+   - **ArrowInterop**: Arrow memory layout and Parquet support
+   - Format detection and automatic conversion
+   - View semantics preservation
 
 3. **Tensor Core**: Computation abstraction
    - Shape, strides, dtype, and layout metadata
    - Mathematical, statistical, and financial operations
    - View-based slicing and reshaping
+   - Multi-dimensional tensor support
 
-4. **Interop Layer**: Ecosystem integration
-   - Zero-copy NumPy conversion
-   - PyTorch integration via DLPack
-   - Pandas Series/DataFrame conversion
+4. **Buffer Layer**: Memory management with allocator abstraction
+   - **Buffer Types**: `MemoryBuffer`, `MMapBuffer`, `SharedMemoryBuffer`
+   - **Allocators**: `HeapAllocator`, `PoolAllocator`, `AlignedAllocator`
+   - Deterministic memory lifecycle management
+   - RAII-based resource management
 
-5. **Python API Layer** (Top): User-facing interface
-   - Pybind11 bindings
-   - Convenience wrapper functions
-   - Context managers for resource management
+5. **Backend Abstraction Layer** (Bottom): Unified storage interface
+   - **Backend Interface**: Abstract base for all storage types
+   - **MemoryBackend**: Heap-allocated memory
+   - **MMapBackend**: Memory-mapped file I/O
+   - **SharedMemoryBackend**: POSIX shared memory
+   - **ArrowBackend**: Apache Arrow/Parquet storage (planned)
+   - Runtime backend selection based on use case
 
 ### Project Structure
 
@@ -667,32 +676,38 @@ dragon-tensor/
 │       ├── storage.h              # Storage modes and metadata
 │       ├── io.h                   # File I/O utilities
 │       ├── backend.h              # Backend abstraction interface
+│       ├── allocator.h            # Allocator interface (Heap, Pool, Aligned)
 │       ├── version.h.in           # Template for version.h (generated from VERSION.txt)
 │       ├── backends/              # Backend implementations
 │       │   ├── memory_backend.h
 │       │   ├── mmap_backend.h
-│       │   └── sharedmem_backend.h
-│       ├── interop/               # Interoperability headers
-│       │   ├── numpy_interop.h
-│       │   ├── torch_interop.h
-│       │   └── arrow_interop.h
+│       │   ├── sharedmem_backend.h
+│       │   └── arrow_backend.h    # Arrow/Parquet backend
+│       ├── interop/               # Interoperability headers (5-Layer Architecture: Interop Layer)
+│       │   ├── numpy_interop.h    # NumPy zero-copy conversion
+│       │   ├── torch_interop.h   # PyTorch DLPack zero-copy conversion
+│       │   └── arrow_interop.h    # Arrow zero-copy conversion
 │       └── utils/
 │           └── logging.h          # Logging utilities
 │
 ├── src/
-│   ├── tensor.cpp                 # Tensor implementation
-│   ├── buffer.cpp                 # Buffer implementations
+│   ├── tensor.cpp                 # Tensor Core implementation
+│   ├── buffer.cpp                 # Buffer Layer implementations
+│   ├── allocator.cpp              # Allocator implementations (Heap, Pool, Aligned)
 │   ├── backend_factory.cpp        # Backend factory functions
 │   ├── io.cpp                     # File I/O implementation
 │   ├── storage.cpp                # Storage utilities
-│   ├── backends/                  # Backend implementations
+│   ├── backends/                  # Backend Abstraction Layer implementations
 │   │   ├── memory_backend.cpp
 │   │   ├── mmap_backend.cpp
-│   │   └── sharedmem_backend.cpp
+│   │   ├── sharedmem_backend.cpp
+│   │   └── arrow_backend.cpp      # Arrow/Parquet backend
 │   ├── utils/
 │   │   └── logging.cpp            # Logging implementation
-│   ├── interop/                   # Interoperability implementations (placeholders)
-│   └── storage/                   # Storage implementations (placeholder)
+│   └── interop/                   # Interop Layer implementations
+│       ├── numpy_interop.cpp      # NumPy interop implementation
+│       ├── torch_interop.cpp      # PyTorch interop implementation
+│       └── arrow_interop.cpp      # Arrow interop placeholder
 │
 ├── python/
 │   ├── bindings.cpp               # Python bindings (pybind11)

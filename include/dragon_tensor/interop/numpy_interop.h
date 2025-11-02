@@ -1,7 +1,6 @@
 #pragma once
 
-// NumPy interoperability headers
-// This module provides zero-copy conversion between Dragon Tensor and NumPy
+#include <pybind11/numpy.h>
 
 namespace dragon_tensor {
 
@@ -9,7 +8,15 @@ namespace dragon_tensor {
 template <typename T>
 class Tensor;
 
-// NumPy interop functions will be declared here
-// Implementation in src/interop/numpy_interop.cpp
+// NumPy interop functions
+// Provides zero-copy conversion using array interface protocol
+
+/**
+ * Create a Tensor from a NumPy array (zero-copy when possible)
+ * @param arr NumPy array
+ * @return Tensor with data from NumPy array
+ */
+template <typename T>
+Tensor<T> from_numpy_array(const pybind11::array_t<T>& arr);
 
 }  // namespace dragon_tensor

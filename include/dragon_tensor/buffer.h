@@ -10,6 +10,7 @@ namespace dragon_tensor {
 
 // Forward declarations
 enum class DType;
+class Allocator;
 
 // Buffer base class for memory management abstraction
 class Buffer {

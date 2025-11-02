@@ -21,9 +21,11 @@ def read_requirements():
 
 
 # All C++ source files needed to build the extension
+# Note: interop sources require pybind11, so they're only compiled with Python bindings
 core_sources = [
     "src/tensor.cpp",
     "src/buffer.cpp",
+    "src/allocator.cpp",
     "src/backend_factory.cpp",
     "src/io.cpp",
     "src/storage.cpp",
@@ -31,6 +33,10 @@ core_sources = [
     "src/backends/memory_backend.cpp",
     "src/backends/mmap_backend.cpp",
     "src/backends/sharedmem_backend.cpp",
+    "src/backends/arrow_backend.cpp",
+    "src/interop/arrow_interop.cpp",
+    "src/interop/numpy_interop.cpp",
+    "src/interop/torch_interop.cpp",
     "python/bindings.cpp",
 ]
 

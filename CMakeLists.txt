@@ -83,9 +83,11 @@ if(BUILD_PYTHON_BINDINGS)
 endif()
 
 # Core library sources
+# Note: interop sources are compiled only with Python bindings (they require pybind11)
 set(CORE_SOURCES
     src/tensor.cpp
     src/buffer.cpp
+    src/allocator.cpp
     src/backend_factory.cpp
     src/io.cpp
     src/storage.cpp
@@ -93,6 +95,8 @@ set(CORE_SOURCES
     src/backends/memory_backend.cpp
     src/backends/mmap_backend.cpp
     src/backends/sharedmem_backend.cpp
+    src/backends/arrow_backend.cpp
+    src/interop/arrow_interop.cpp
 )
 
 add_library(dragon_tensor STATIC
@@ -118,8 +122,15 @@ endif()
 
 # Python bindings
 if(BUILD_PYTHON_BINDINGS)
+    # Interop sources (require pybind11, so only compile with Python bindings)
+    set(PYTHON_INTEROP_SOURCES
+        src/interop/numpy_interop.cpp
+        src/interop/torch_interop.cpp
+    )
+    
     pybind11_add_module(dragon_tensor_py
         python/bindings.cpp
+        ${PYTHON_INTEROP_SOURCES}
     )
     
     target_link_libraries(dragon_tensor_py PRIVATE

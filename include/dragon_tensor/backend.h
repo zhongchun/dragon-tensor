@@ -47,5 +47,7 @@ class Backend {
     std::string_view path, bool read_only = false);
 [[nodiscard]] std::shared_ptr<Backend> create_shared_memory_backend(
     std::string_view name);
+[[nodiscard]] std::shared_ptr<Backend> create_arrow_backend(
+    std::string_view path = "", bool read_only = false);
 
 }  // namespace dragon_tensor
