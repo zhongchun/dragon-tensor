@@ -385,7 +385,7 @@ void bind_tensor_operations(py::module& m, const std::string& name_suffix) {
       });
 }
 
-PYBIND11_MODULE(dragon_tensor, m) {
+PYBIND11_MODULE(_dragon_tensor_cpp, m) {
   m.doc() =
       "Dragon Tensor - High-performance tensor library for financial data "
       "analysis";

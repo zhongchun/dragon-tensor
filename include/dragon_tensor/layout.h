@@ -11,4 +11,3 @@ inline const char* layout_to_string(Layout layout) {
 }
 
 }  // namespace dragon_tensor
-

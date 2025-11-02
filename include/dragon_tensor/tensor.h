@@ -1,11 +1,5 @@
 #pragma once
 
-#include "dragon_tensor/buffer.h"
-#include "dragon_tensor/dtype.h"
-#include "dragon_tensor/layout.h"
-#include "dragon_tensor/shape.h"
-#include "dragon_tensor/storage.h"
-
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -16,6 +10,12 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "dragon_tensor/buffer.h"
+#include "dragon_tensor/dtype.h"
+#include "dragon_tensor/layout.h"
+#include "dragon_tensor/shape.h"
+#include "dragon_tensor/storage.h"
 
 namespace dragon_tensor {
 

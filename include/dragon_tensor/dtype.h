@@ -61,4 +61,3 @@ inline size_t dtype_size(DType dtype) {
 }
 
 }  // namespace dragon_tensor
-

@@ -1,9 +1,9 @@
 #include "dragon_tensor/backends/sharedmem_backend.h"
 
-#include "dragon_tensor/buffer.h"
-
 #include <memory>
 #include <stdexcept>
+
+#include "dragon_tensor/buffer.h"
 
 namespace dragon_tensor {
 
@@ -34,16 +34,13 @@ SharedMemoryBackend& SharedMemoryBackend::operator=(
 }
 
 std::shared_ptr<Buffer> SharedMemoryBackend::allocate(size_t size_bytes,
-                                                       Layout) {
+                                                      Layout) {
   // Create or attach to shared memory buffer
   auto buffer = SharedMemoryBuffer::create(name_, size_bytes);
   owns_ = true;
   return buffer;
 }
 
-void SharedMemoryBackend::release(Buffer& buffer) {
-  buffer.detach();
-}
+void SharedMemoryBackend::release(Buffer& buffer) { buffer.detach(); }
 
 }  // namespace dragon_tensor
-

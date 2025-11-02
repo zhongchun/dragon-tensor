@@ -1,11 +1,10 @@
-#include "dragon_tensor/backend.h"
+#include <memory>
+#include <string_view>
 
+#include "dragon_tensor/backend.h"
 #include "dragon_tensor/backends/memory_backend.h"
 #include "dragon_tensor/backends/mmap_backend.h"
 #include "dragon_tensor/backends/sharedmem_backend.h"
-
-#include <memory>
-#include <string_view>
 
 namespace dragon_tensor {
 
@@ -14,7 +13,7 @@ std::shared_ptr<Backend> create_memory_backend() {
 }
 
 std::shared_ptr<Backend> create_mmap_backend(std::string_view path,
-                                              bool read_only) {
+                                             bool read_only) {
   return std::make_shared<MMapBackend>(path, read_only);
 }
 
@@ -23,4 +22,3 @@ std::shared_ptr<Backend> create_shared_memory_backend(std::string_view name) {
 }
 
 }  // namespace dragon_tensor
-

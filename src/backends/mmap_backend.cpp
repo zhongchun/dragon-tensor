@@ -1,9 +1,9 @@
 #include "dragon_tensor/backends/mmap_backend.h"
 
-#include "dragon_tensor/buffer.h"
-
 #include <memory>
 #include <stdexcept>
+
+#include "dragon_tensor/buffer.h"
 
 namespace dragon_tensor {
 
@@ -35,13 +35,10 @@ std::shared_ptr<Buffer> MMapBackend::allocate(size_t size_bytes, Layout) {
   throw std::runtime_error("MMapBackend::allocate not yet fully implemented");
 }
 
-void MMapBackend::release(Buffer& buffer) {
-  buffer.detach();
-}
+void MMapBackend::release(Buffer& buffer) { buffer.detach(); }
 
 void MMapBackend::flush() {
   // Flush any mapped regions
 }
 
 }  // namespace dragon_tensor
-

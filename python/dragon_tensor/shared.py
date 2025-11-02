@@ -7,12 +7,18 @@ for cross-process access.
 
 from typing import Optional
 
+# Import Layout from the parent package
+# This will work because Layout is exported early in __init__.py
+# If not available, use a fallback
 try:
     import dragon_tensor
-    from dragon_tensor import Layout
-except ImportError:
-    from .. import dragon_tensor
-    from ..dragon_tensor import Layout
+
+    Layout = dragon_tensor.Layout
+except (ImportError, AttributeError):
+    # Fallback: create a simple Layout-like object
+    class Layout:
+        RowMajor = "row"
+        ColumnMajor = "column"
 
 
 def create_shared(
@@ -114,4 +120,3 @@ __all__ = [
     "destroy_shared",
     "flush",
 ]
-

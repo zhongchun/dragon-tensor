@@ -14,4 +14,3 @@ class Tensor;
 // Implementation in src/interop/torch_interop.cpp
 
 }  // namespace dragon_tensor
-

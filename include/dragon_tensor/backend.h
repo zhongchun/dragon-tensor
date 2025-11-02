@@ -49,4 +49,3 @@ class Backend {
     std::string_view name);
 
 }  // namespace dragon_tensor
-

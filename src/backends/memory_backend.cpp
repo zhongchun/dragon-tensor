@@ -1,8 +1,8 @@
 #include "dragon_tensor/backends/memory_backend.h"
 
-#include "dragon_tensor/buffer.h"
-
 #include <memory>
+
+#include "dragon_tensor/buffer.h"
 
 namespace dragon_tensor {
 
@@ -17,4 +17,3 @@ void MemoryBackend::release(Buffer& buffer) {
 }
 
 }  // namespace dragon_tensor
-

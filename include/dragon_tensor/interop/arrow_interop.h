@@ -13,4 +13,3 @@ class Tensor;
 // Implementation in src/interop/arrow_interop.cpp
 
 }  // namespace dragon_tensor
-

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "dragon_tensor/dtype.h"
-#include "dragon_tensor/layout.h"
-
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "dragon_tensor/dtype.h"
+#include "dragon_tensor/layout.h"
 
 namespace dragon_tensor {
 

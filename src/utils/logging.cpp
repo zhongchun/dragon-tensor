@@ -37,4 +37,3 @@ void log_error(const std::string& message) {
 }
 
 }  // namespace dragon_tensor
-

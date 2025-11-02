@@ -30,7 +30,7 @@ inline void validate_shape(const Shape& shape) {
 
 // Calculate strides from shape (row-major)
 inline std::vector<size_t> calculate_strides_row_major(const Shape& shape,
-                                                        size_t element_size) {
+                                                       size_t element_size) {
   if (shape.empty()) return {};
   std::vector<size_t> strides(shape.size());
   strides[shape.size() - 1] = element_size;
@@ -66,4 +66,3 @@ inline size_t calculate_offset(const std::vector<size_t>& indices,
 }
 
 }  // namespace dragon_tensor
-

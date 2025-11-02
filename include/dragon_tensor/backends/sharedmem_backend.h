@@ -1,10 +1,10 @@
 #pragma once
 
-#include "dragon_tensor/backend.h"
-
 #include <memory>
 #include <string>
 #include <string_view>
+
+#include "dragon_tensor/backend.h"
 
 namespace dragon_tensor {
 
@@ -23,7 +23,7 @@ class SharedMemoryBackend : public Backend {
   SharedMemoryBackend& operator=(SharedMemoryBackend&& other) noexcept;
 
   [[nodiscard]] std::shared_ptr<Buffer> allocate(size_t size_bytes,
-                                                  Layout layout) override;
+                                                 Layout layout) override;
 
   void release(Buffer& buffer) override;
 
@@ -42,4 +42,3 @@ class SharedMemoryBackend : public Backend {
 };
 
 }  // namespace dragon_tensor
-
