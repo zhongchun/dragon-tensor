@@ -4,6 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dragon-tensor"
+# Version is read from setup.py, which reads from VERSION.txt
+# This will be ignored when using setuptools, but kept for reference
 version = "0.0.1"
 description = "High-performance tensor library for financial data analysis"
 readme = "README.md"

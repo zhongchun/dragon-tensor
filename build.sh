@@ -309,21 +309,96 @@ if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
     print_info "Building Python wheel..."
     cd ..
     
-    # Check for build tools
-    if ! $PYTHON_EXECUTABLE -m pip show build > /dev/null 2>&1; then
-        print_warning "build package not found. Installing..."
-        $PYTHON_EXECUTABLE -m pip install build wheel --quiet
-    fi
-    
-    # Build wheel
-    $PYTHON_EXECUTABLE -m build --wheel > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1)
-        if [ -n "$WHEEL_FILE" ]; then
-            print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
-        fi
+    # Find the CMake-built extension module
+    PYTHON_MODULE=$(find "$BUILD_DIR" -name "dragon_tensor*.so" -o -name "dragon_tensor*.dylib" | head -1)
+    if [ -z "$PYTHON_MODULE" ]; then
+        print_error "Python extension module not found in $BUILD_DIR"
+        print_info "Skipping wheel build"
     else
-        print_warning "Wheel building failed, but C++ build succeeded"
+        print_info "Found extension module: $(basename $PYTHON_MODULE)"
+        
+        # Install required packages for wheel building
+        $PYTHON_EXECUTABLE -m pip install --quiet --upgrade pip setuptools wheel 2>/dev/null || true
+        
+        # Try using wheel package to create wheel manually
+        print_info "Creating wheel package structure..."
+        
+        # Create a temporary directory for wheel building
+        TEMP_WHEEL_DIR=$(mktemp -d)
+        trap "rm -rf $TEMP_WHEEL_DIR" EXIT
+        
+        # Get package version and name
+        PACKAGE_NAME="dragon_tensor"
+        PACKAGE_VERSION="0.0.1"
+        PYTHON_TAG="py3"
+        ABI_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+        PLATFORM_TAG=$(python3 -c "import sysconfig; print(sysconfig.get_platform().replace('-', '_').replace('.', '_'))")
+        
+        # Determine extension suffix
+        if [[ "$PYTHON_MODULE" == *.so ]]; then
+            EXT_SUFFIX=".so"
+        elif [[ "$PYTHON_MODULE" == *.dylib ]]; then
+            EXT_SUFFIX=".so"  # Wheels use .so even on macOS
+        else
+            EXT_SUFFIX=".so"
+        fi
+        
+        # Create wheel directory structure
+        WHEEL_NAME="${PACKAGE_NAME}-${PACKAGE_VERSION}-${PYTHON_TAG}-none-${PLATFORM_TAG}"
+        WHEEL_DIR="$TEMP_WHEEL_DIR/$WHEEL_NAME"
+        mkdir -p "$WHEEL_DIR/dragon_tensor"
+        
+        # Copy Python package files
+        cp -r python/dragon_tensor/*.py "$WHEEL_DIR/dragon_tensor/" 2>/dev/null || true
+        
+        # Copy the built extension module
+        cp "$PYTHON_MODULE" "$WHEEL_DIR/dragon_tensor/dragon_tensor${EXT_SUFFIX}"
+        
+        # Create METADATA file
+        mkdir -p "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info"
+        cat > "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/METADATA" << EOF
+Metadata-Version: 2.1
+Name: ${PACKAGE_NAME}
+Version: ${PACKAGE_VERSION}
+Summary: High-performance tensor library for financial data analysis
+Author: Dragon Tensor Contributors
+License: MIT
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: C++
+EOF
+        
+        # Create WHEEL file
+        cat > "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/WHEEL" << EOF
+Wheel-Version: 1.0
+Generator: dragon-tensor-build-script
+Root-Is-Purelib: false
+Tag: ${PYTHON_TAG}-none-${PLATFORM_TAG}
+EOF
+        
+        # Create RECORD file
+        RECORD_FILE="$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/RECORD"
+        > "$RECORD_FILE"
+        for file in $(find "$WHEEL_DIR" -type f ! -name "RECORD"); do
+            rel_path=${file#$WHEEL_DIR/}
+            file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+            file_hash=$(python3 -c "import hashlib; f=open('$file','rb'); print(hashlib.sha256(f.read()).hexdigest())" 2>/dev/null || echo "")
+            echo "$rel_path,sha256=$file_hash,$file_size" >> "$RECORD_FILE"
+        done
+        echo "${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/RECORD,," >> "$RECORD_FILE"
+        
+        # Create dist directory and build wheel
+        mkdir -p dist
+        (cd "$TEMP_WHEEL_DIR" && zip -qr "../${WHEEL_NAME}.whl" .)
+        mv "$TEMP_WHEEL_DIR/../${WHEEL_NAME}.whl" dist/
+        
+        WHEEL_FILE="dist/${WHEEL_NAME}.whl"
+        if [ -f "$WHEEL_FILE" ]; then
+            print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
+            ls -lh "$WHEEL_FILE"
+        else
+            print_error "Failed to create wheel file"
+        fi
     fi
     cd "$BUILD_DIR"
 fi

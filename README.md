@@ -14,7 +14,6 @@ A high-performance tensor library written in C++17, designed specifically for fi
   - [Prerequisites](#prerequisites)
   - [Quick Build with Script](#quick-build-with-script)
   - [Building from Source](#building-from-source)
-  - [Using Makefile](#using-makefile)
   - [Building Python Wheel](#building-python-wheel)
   - [Code Formatting](#code-formatting)
 - [Usage Examples](#usage-examples)
@@ -30,6 +29,7 @@ A high-performance tensor library written in C++17, designed specifically for fi
 - [Running Examples](#running-examples)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Version Management](#version-management)
 - [Version History](#version-history)
 - [License & Citation](#license--citation)
 
@@ -238,43 +238,6 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
 ```
 
-### Using Makefile
-
-```bash
-# Build Targets
-make                # Build C++ library and generate wheel (default, uses build.sh)
-make build          # Build C++ library only (direct cmake, no wheel)
-make build-wheel    # Build C++ library and generate wheel (uses build.sh)
-make wheel          # Generate Python wheel only (requires build first)
-make rebuild        # Clean and rebuild everything
-make verify         # Build and run basic verification
-
-# Installation
-make install        # Install Python package
-make install-dev    # Install in development mode
-
-# Testing & Examples
-make test           # Run tests
-make examples       # Build and run C++ examples
-make python-examples # Run Python examples
-
-# Code Quality
-make format         # Format all C++ and Python files
-make format-check   # Check formatting without modifying
-make format-cpp     # Format only C++ files (uses .clang-format)
-make format-python  # Format only Python files
-make lint           # Check formatting (alias for format-check)
-
-# Cleanup
-make clean          # Clean build directory only
-make clean-all      # Clean build directory, wheels, and Python artifacts
-
-# Help
-make help           # Show all available targets
-```
-
-**Note:** By default, `make` (or `make all`) uses `build.sh` which automatically generates wheels. Use `make build` for direct CMake builds without wheel generation.
-
 ### Building Python Wheel
 
 **Note:** The build script automatically generates Python wheels by default when Python bindings are enabled. No additional steps needed!
@@ -318,16 +281,6 @@ The project uses **Google C++ Style Guide** as the default coding style, enforce
 
 # Format only Python files
 ./format.sh -P
-```
-
-#### Using Makefile for Formatting
-
-```bash
-make format         # Format all files
-make format-check   # Check formatting without modifying
-make format-cpp     # Format only C++ files
-make format-python  # Format only Python files
-make lint           # Check formatting (alias for format-check)
 ```
 
 **C++ Style**: Google C++ Style Guide (enforced via `.clang-format`)  
@@ -505,8 +458,8 @@ dt.TensorDouble.destroy_shared("risk_shared")
 
 For complete API documentation, see:
 
-- **[C++ API Reference](docs/api_cpp.md)** - Complete C++ API with detailed method signatures
-- **[Python API Reference](docs/api_python.md)** - Complete Python API with examples
+- **[C++ API Reference](docs/api/cpp_api_reference.md)** - Complete C++ API with detailed method signatures
+- **[Python API Reference](docs/api/python_api_reference.md)** - Complete Python API with examples
 
 ### Quick Reference
 
@@ -695,37 +648,80 @@ graph TB
 
 ```text
 dragon-tensor/
+├── VERSION.txt                    # Single source of truth for version (used by C++ and Python)
+├── CMakeLists.txt                 # CMake build configuration
+├── setup.py                       # Python package setup (reads version from VERSION.txt)
+├── pyproject.toml                 # Python package metadata
+├── build.sh                       # Automated build script
+├── format.sh                      # Code formatting script
+├── test_build.sh                  # Build verification script
+├── requirements.txt               # Python dependencies
+│
 ├── include/
 │   └── dragon_tensor/
-│       ├── tensor.h               # Tensor class header (declarations)
+│       ├── tensor.h               # Tensor class header
 │       ├── buffer.h               # Buffer abstraction for memory management
-│       ├── storage.h              # Storage modes, layouts, and metadata
-│       └── io.h                   # File I/O utilities
+│       ├── dtype.h                # Data type enumeration
+│       ├── shape.h                # Shape utilities
+│       ├── layout.h               # Memory layout enumeration
+│       ├── storage.h              # Storage modes and metadata
+│       ├── io.h                   # File I/O utilities
+│       ├── backend.h              # Backend abstraction interface
+│       ├── version.h.in           # Template for version.h (generated from VERSION.txt)
+│       ├── backends/              # Backend implementations
+│       │   ├── memory_backend.h
+│       │   ├── mmap_backend.h
+│       │   └── sharedmem_backend.h
+│       ├── interop/               # Interoperability headers
+│       │   ├── numpy_interop.h
+│       │   ├── torch_interop.h
+│       │   └── arrow_interop.h
+│       └── utils/
+│           └── logging.h          # Logging utilities
+│
 ├── src/
-│   ├── tensor.cpp                 # Tensor implementation with explicit template instantiations
-│   ├── buffer.cpp                 # Buffer implementations (Memory, MMap, SharedMemory)
-│   ├── storage.cpp                # Storage utilities (checksum, etc.)
-│   └── io.cpp                     # File I/O implementation
+│   ├── tensor.cpp                 # Tensor implementation
+│   ├── buffer.cpp                 # Buffer implementations
+│   ├── backend_factory.cpp        # Backend factory functions
+│   ├── io.cpp                     # File I/O implementation
+│   ├── storage.cpp                # Storage utilities
+│   ├── backends/                  # Backend implementations
+│   │   ├── memory_backend.cpp
+│   │   ├── mmap_backend.cpp
+│   │   └── sharedmem_backend.cpp
+│   ├── utils/
+│   │   └── logging.cpp            # Logging implementation
+│   ├── interop/                   # Interoperability implementations (placeholders)
+│   └── storage/                   # Storage implementations (placeholder)
+│
 ├── python/
 │   ├── bindings.cpp               # Python bindings (pybind11)
-│   └── dragon_tensor/
-│       ├── __init__.py            # Python package initialization
-│       └── wrapper.py             # Convenience wrapper functions
+│   └── dragon_tensor/             # Python package
+│       ├── __init__.py            # Package initialization (reads version from VERSION.txt)
+│       ├── io.py                  # File I/O operations
+│       ├── finance.py             # Financial operations
+│       ├── shared.py              # Shared memory operations
+│       └── utils.py               # Utility functions and interop
+│
 ├── examples/                      # Example code
-├── CMakeLists.txt                 # CMake build configuration
-├── build.sh                       # Build script
-├── format.sh                      # Code formatting script
-├── Makefile                       # Makefile with convenience targets
-└── setup.py                       # Python package setup
+│   ├── cpp/                       # C++ examples
+│   └── python/                    # Python examples
+│
+└── docs/                          # Documentation
+    ├── design/                    # Design documents
+    ├── api/                       # API reference
+    ├── performance/               # Performance guides
+    └── diagrams/                  # Architecture diagrams
 ```
 
 **Implementation Notes:**
 
-- The Tensor class is a template class with implementations in `src/tensor.cpp`
-- Explicit template instantiations are provided for: `float`, `double`, `int32_t`, `int64_t`, `uint8_t`
-- These correspond to `TensorFloat`, `TensorDouble`, `TensorInt`, `TensorLong` type aliases
-- Buffer abstraction allows seamless switching between memory modes
-- Storage layer provides unified interface for file and shared memory operations
+- **Version Management**: Version is stored in `VERSION.txt` and used by both C++ (via CMake-generated `version.h`) and Python (via `setup.py` and `__init__.py`)
+- **Tensor Implementation**: Template class with explicit instantiations for `float`, `double`, `int32_t`, `int64_t`, `uint8_t`
+- **Backend Abstraction**: Unified interface for storage backends (memory, mmap, shared memory, Arrow/Parquet)
+- **Buffer Abstraction**: Flexible memory management with allocator support
+- **Interop Layer**: Zero-copy integration with NumPy, PyTorch, and Apache Arrow
+- **Modular Python API**: Organized into submodules (io, finance, shared, utils)
 
 ## Performance
 
@@ -746,9 +742,6 @@ Dragon Tensor is optimized for financial computations:
 ```bash
 # Build and run the basic example
 ./build/examples/example_basic
-
-# Or using make
-make examples
 ```
 
 ### Python Examples
@@ -819,14 +812,32 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 Before submitting:
 
-1. Run `make format` or `./format.sh` to ensure code is properly formatted
-2. Run `make verify` to verify the build works
-3. Ensure all tests pass (`make test`)
+1. Run `./format.sh` to ensure code is properly formatted
+2. Run `./test_build.sh` to verify the build works
+3. Ensure all tests pass
 4. Update documentation if needed
+
+## Version Management
+
+The project uses a **single source of truth** for version information:
+
+- **`VERSION.txt`**: Contains the version string (e.g., `0.0.1`)
+- **C++**: CMake reads `VERSION.txt` and generates `include/dragon_tensor/version.h` at build time
+- **Python**: `setup.py` and `__init__.py` read directly from `VERSION.txt`
+
+To update the version, simply edit `VERSION.txt` - all build systems will automatically use the new version.
 
 ## Version History
 
-### v0.2 (Current)
+### v0.3 (Current)
+
+- **Apache Arrow Integration**: Zero-copy conversion with Arrow/Parquet formats
+- **5-Layer Architecture**: Refined architecture with Backend Abstraction Layer
+- **Allocator Abstraction**: Flexible memory management strategies
+- **Enhanced Project Structure**: Modular organization with interop, backends, and utilities
+- **Centralized Version Management**: Single `VERSION.txt` for all components
+
+### v0.2
 
 - **Storage Layer**: File I/O with versioned binary format, memory-mapped I/O
 - **Shared Memory**: POSIX shared memory support for cross-process tensor sharing
@@ -844,19 +855,26 @@ Before submitting:
 
 ## Documentation
 
-Complete documentation is available in the [`docs/`](docs/) directory:
+Complete documentation is available in the [`docs/`](docs/) directory. See the [Documentation Index](docs/README.md) for an overview.
 
-### API Documentation
+### Quick Links
 
-- **[C++ API Reference](docs/api_cpp.md)** - Comprehensive C++ API with method signatures, parameters, and examples
-- **[Python API Reference](docs/api_python.md)** - Complete Python API with usage examples and type conversion guide
+**API Documentation:**
 
-### Design Documents
+- **[C++ API Reference](docs/api/cpp_api_reference.md)** - Comprehensive C++ API with method signatures, parameters, and examples
+- **[Python API Reference](docs/api/python_api_reference.md)** - Complete Python API with usage examples and type conversion guide
 
-- **[Requirements Document v0.1](docs/requirements_doc_0.1.md)** - Initial design and requirements specification
-- **[Requirements Document v0.2](docs/requirements_doc_0.2.md)** - Enhanced design with storage layer, buffer abstraction, and shared memory support
+**Design Documents:**
 
-See [docs/README.md](docs/README.md) for an overview of all documentation.
+- **[Requirements Document v0.3](docs/design/requirements_doc_0.3.md)** - Latest design with Apache Arrow integration and 5-layer architecture
+- **[Requirements Document v0.2](docs/design/requirements_doc_0.2.md)** - Enhanced design with storage layer, buffer abstraction, and shared memory support
+- **[Requirements Document v0.1](docs/design/requirements_doc_0.1.md)** - Initial design and requirements specification
+- **[UML Architecture](docs/design/uml_architecture.md)** - Visual architecture diagrams
+- **[Backend Abstraction](docs/design/backend_abstraction.md)** - Backend layer design
+
+**Performance & Optimization:**
+
+- **[Performance Optimizations](docs/performance/optimizations.md)** - Comprehensive optimization guide
 
 ## License & Citation
 

@@ -1,5 +1,5 @@
 """
-Convenience wrappers for integration with NumPy, Pandas, and PyTorch
+Utility functions for dtype conversion, device checks, and interoperability
 """
 
 import numpy as np
@@ -19,9 +19,15 @@ except ImportError:
     HAS_TORCH = False
 
 try:
+    import pyarrow as pa
+
+    HAS_ARROW = True
+except ImportError:
+    HAS_ARROW = False
+
+try:
     import dragon_tensor
 except ImportError:
-    # If direct import fails, try relative import
     from .. import dragon_tensor
 
 
@@ -133,11 +139,6 @@ def to_torch(tensor, device=None, dtype=None):
 
     Returns:
         PyTorch tensor (zero-copy when device=None and dtype matches)
-
-    Note:
-        torch.from_numpy() creates a zero-copy view when the NumPy array
-        is C-contiguous. Since tensor.to_numpy() returns a zero-copy view,
-        this conversion is also zero-copy (unless device/dtype conversion is needed).
     """
     if not HAS_TORCH:
         raise ImportError("torch is required for to_torch")
@@ -145,11 +146,7 @@ def to_torch(tensor, device=None, dtype=None):
     # Get zero-copy NumPy array
     arr = tensor.to_numpy()
 
-    # torch.from_numpy() creates zero-copy view (shares memory with NumPy)
-    # This works because:
-    # 1. tensor.to_numpy() returns zero-copy view of Tensor's data
-    # 2. torch.from_numpy() creates zero-copy view of NumPy array
-    # 3. Result: Tensor -> NumPy -> PyTorch all share the same memory!
+    # torch.from_numpy() creates zero-copy view
     torch_tensor = torch.from_numpy(arr)
 
     # Device/dtype conversions require copying
@@ -161,6 +158,38 @@ def to_torch(tensor, device=None, dtype=None):
     return torch_tensor
 
 
+def from_arrow(arrow_array):
+    """Convert Arrow Array to Dragon Tensor
+
+    Args:
+        arrow_array: pyarrow.Array
+
+    Returns:
+        Dragon Tensor
+    """
+    if not HAS_ARROW:
+        raise ImportError("pyarrow is required for from_arrow")
+
+    # Placeholder - will be implemented when Arrow interop is added
+    raise NotImplementedError("Arrow interop not yet implemented")
+
+
+def to_arrow(tensor):
+    """Convert Dragon Tensor to Arrow Array
+
+    Args:
+        tensor: Dragon Tensor
+
+    Returns:
+        pyarrow.Array
+    """
+    if not HAS_ARROW:
+        raise ImportError("pyarrow is required for to_arrow")
+
+    # Placeholder - will be implemented when Arrow interop is added
+    raise NotImplementedError("Arrow interop not yet implemented")
+
+
 __all__ = [
     "from_numpy",
     "to_numpy",
@@ -168,4 +197,10 @@ __all__ = [
     "to_pandas",
     "from_torch",
     "to_torch",
+    "from_arrow",
+    "to_arrow",
+    "HAS_PANDAS",
+    "HAS_TORCH",
+    "HAS_ARROW",
 ]
+

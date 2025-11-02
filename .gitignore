@@ -13,7 +13,9 @@ CMakeFiles/
 cmake_install.cmake
 *.cmake
 !CMakeLists.txt
-!Makefile
+
+# Generated files
+build/include/
 
 # IDE
 .vscode/

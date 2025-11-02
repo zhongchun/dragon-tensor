@@ -5,18 +5,37 @@ import pybind11
 import os
 
 
+# Read version from VERSION.txt (single source of truth)
+def get_version():
+    version_file = os.path.join(os.path.dirname(__file__), "VERSION.txt")
+    with open(version_file, "r") as f:
+        return f.read().strip()
+
+
 # Read requirements
 def read_requirements():
     with open("requirements.txt", "r") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 
+# All C++ source files needed to build the extension
+core_sources = [
+    "src/tensor.cpp",
+    "src/buffer.cpp",
+    "src/backend_factory.cpp",
+    "src/io.cpp",
+    "src/storage.cpp",
+    "src/utils/logging.cpp",
+    "src/backends/memory_backend.cpp",
+    "src/backends/mmap_backend.cpp",
+    "src/backends/sharedmem_backend.cpp",
+    "python/bindings.cpp",
+]
+
 ext_modules = [
     Pybind11Extension(
         "dragon_tensor",
-        [
-            "python/bindings.cpp",
-        ],
+        core_sources,
         include_dirs=[
             "include",
             pybind11.get_include(),
@@ -28,7 +47,7 @@ ext_modules = [
 
 setup(
     name="dragon-tensor",
-    version="0.0.1",
+    version=get_version(),
     author="Dragon Tensor Contributors",
     description="High-performance tensor library for financial data analysis",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",

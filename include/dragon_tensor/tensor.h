@@ -1,5 +1,11 @@
 #pragma once
 
+#include "dragon_tensor/buffer.h"
+#include "dragon_tensor/dtype.h"
+#include "dragon_tensor/layout.h"
+#include "dragon_tensor/shape.h"
+#include "dragon_tensor/storage.h"
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -11,17 +17,12 @@
 #include <string_view>
 #include <vector>
 
-#include "dragon_tensor/buffer.h"
-#include "dragon_tensor/storage.h"
-
 namespace dragon_tensor {
 
 // Forward declarations
 class Buffer;
 enum class StorageMode;
-enum class Layout;
 struct TensorMeta;
-// DType is now defined in storage.h
 
 template <typename T>
 class Tensor {

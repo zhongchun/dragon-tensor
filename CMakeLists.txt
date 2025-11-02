@@ -1,5 +1,26 @@
 cmake_minimum_required(VERSION 3.15)
-project(DragonTensor VERSION 0.0.1 LANGUAGES CXX)
+
+# Read version from VERSION.txt (single source of truth)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" VERSION_STRING LIMIT_COUNT 1)
+string(STRIP "${VERSION_STRING}" VERSION_STRING)
+
+# Parse version components
+string(REPLACE "." ";" VERSION_LIST "${VERSION_STRING}")
+list(GET VERSION_LIST 0 VERSION_MAJOR)
+list(GET VERSION_LIST 1 VERSION_MINOR)
+list(GET VERSION_LIST 2 VERSION_PATCH)
+
+# Generate version.h from template
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/dragon_tensor/version.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/dragon_tensor/version.h"
+    @ONLY
+)
+
+# Include generated headers
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+
+project(DragonTensor VERSION ${VERSION_STRING} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,8 +38,8 @@ option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
 
-# Include directories
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+# Include directories (both source and build directories for generated headers like version.h)
+# Note: Binary include already added above for version.h generation
 
 # Find Python for bindings
 if(BUILD_PYTHON_BINDINGS)
@@ -61,9 +82,17 @@ if(BUILD_PYTHON_BINDINGS)
     endif()
 endif()
 
-# Core library - implementation is in src/tensor.cpp
-file(GLOB_RECURSE CORE_SOURCES
-    "src/*.cpp"
+# Core library sources
+set(CORE_SOURCES
+    src/tensor.cpp
+    src/buffer.cpp
+    src/backend_factory.cpp
+    src/io.cpp
+    src/storage.cpp
+    src/utils/logging.cpp
+    src/backends/memory_backend.cpp
+    src/backends/mmap_backend.cpp
+    src/backends/sharedmem_backend.cpp
 )
 
 add_library(dragon_tensor STATIC

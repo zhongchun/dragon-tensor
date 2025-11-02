@@ -1,5 +1,8 @@
 #pragma once
 
+#include "dragon_tensor/dtype.h"
+#include "dragon_tensor/layout.h"
+
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -7,22 +10,8 @@
 
 namespace dragon_tensor {
 
-// Data type enumeration (moved from tensor.h to avoid circular dependencies)
-enum class DType {
-  FLOAT32,
-  FLOAT64,
-  INT32,
-  INT64,
-  UINT8,
-  DECIMAL64,  // Planned
-  DECIMAL128  // Planned
-};
-
 // Storage mode
-enum class StorageMode { InMemory, MMap, SharedMemory };
-
-// Memory layout
-enum class Layout { RowMajor, ColumnMajor };
+enum class StorageMode { InMemory, MMap, SharedMemory, Arrow };
 
 // Tensor metadata (optional descriptive information)
 struct TensorMeta {
