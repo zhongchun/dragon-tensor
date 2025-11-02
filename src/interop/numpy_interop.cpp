@@ -1,10 +1,10 @@
 #include "dragon_tensor/interop/numpy_interop.h"
 
-#include "dragon_tensor/buffer.h"
-#include "dragon_tensor/tensor.h"
-
 #include <pybind11/numpy.h>
 #include <pybind11/pytypes.h>
+
+#include "dragon_tensor/buffer.h"
+#include "dragon_tensor/tensor.h"
 
 namespace dragon_tensor {
 
@@ -22,7 +22,7 @@ Tensor<T> from_numpy_array(const pybind11::array_t<T>& arr) {
   // Extract shape and strides
   std::vector<size_t> shape(buf_info.shape.begin(), buf_info.shape.end());
   std::vector<size_t> strides;
-  
+
   if (!is_contiguous && buf_info.strides.size() > 0) {
     // Convert strides from bytes to elements
     strides.reserve(buf_info.strides.size());
@@ -32,7 +32,8 @@ Tensor<T> from_numpy_array(const pybind11::array_t<T>& arr) {
   }
 
   // Create tensor from NumPy array data
-  // Note: Tensor currently uses std::vector<T> internally, so we need to copy data
+  // Note: Tensor currently uses std::vector<T> internally, so we need to copy
+  // data
   // TODO: Add Tensor constructor that accepts Buffer for true zero-copy
   std::vector<T> data(static_cast<const T*>(buf_info.ptr),
                       static_cast<const T*>(buf_info.ptr) + buf_info.size);
@@ -48,4 +49,3 @@ template Tensor<int32_t> from_numpy_array(const pybind11::array_t<int32_t>&);
 template Tensor<int64_t> from_numpy_array(const pybind11::array_t<int64_t>&);
 
 }  // namespace dragon_tensor
-

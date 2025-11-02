@@ -64,7 +64,7 @@ Run `./format.sh` to format all code.
 
 ## Testing
 
-Run `./test_build.sh` to verify:
+Run `./scripts/test_build.sh` to verify:
 - C++ library builds correctly
 - Python module imports successfully
 - Basic operations work
@@ -74,7 +74,7 @@ Run `./test_build.sh` to verify:
 
 Before submitting changes:
 1. Run `./format.sh` to format code
-2. Run `./test_build.sh` to verify build
+2. Run `./scripts/test_build.sh` to verify build
 3. Update documentation if needed
 4. Ensure version in `VERSION.txt` is appropriate
 

@@ -24,14 +24,16 @@ ArrowBackend::~ArrowBackend() {
   }
 }
 
-std::shared_ptr<Buffer> ArrowBackend::allocate(size_t size_bytes, Layout layout) {
+std::shared_ptr<Buffer> ArrowBackend::allocate(size_t size_bytes,
+                                               Layout layout) {
   // TODO: Allocate memory via Arrow memory pool when available
   // For now, fall back to standard memory allocation
   // return std::make_shared<MemoryBuffer>(size_bytes);
-  
+
   // Placeholder: return nullptr to indicate not yet implemented
   // In production, this would allocate via Arrow memory pool
-  throw std::runtime_error("ArrowBackend::allocate not yet implemented - Arrow library required");
+  throw std::runtime_error(
+      "ArrowBackend::allocate not yet implemented - Arrow library required");
 }
 
 void ArrowBackend::release(Buffer& buffer) {
@@ -46,9 +48,9 @@ void ArrowBackend::flush() {
   }
 }
 
-std::shared_ptr<Backend> create_arrow_backend(std::string_view path, bool read_only) {
+std::shared_ptr<Backend> create_arrow_backend(std::string_view path,
+                                              bool read_only) {
   return std::make_shared<ArrowBackend>(path, read_only);
 }
 
 }  // namespace dragon_tensor
-

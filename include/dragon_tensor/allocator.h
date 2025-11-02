@@ -11,8 +11,8 @@ class Allocator {
   virtual ~Allocator() = default;
 
   // Allocate memory with optional alignment
-  [[nodiscard]] virtual void* allocate(size_t size,
-                                      size_t alignment = alignof(std::max_align_t)) = 0;
+  [[nodiscard]] virtual void* allocate(
+      size_t size, size_t alignment = alignof(std::max_align_t)) = 0;
 
   // Deallocate memory
   virtual void deallocate(void* ptr, size_t size) = 0;
@@ -24,7 +24,8 @@ class Allocator {
 // Standard heap allocator
 class HeapAllocator : public Allocator {
  public:
-  void* allocate(size_t size, size_t alignment = alignof(std::max_align_t)) override;
+  void* allocate(size_t size,
+                 size_t alignment = alignof(std::max_align_t)) override;
   void deallocate(void* ptr, size_t size) override;
   std::shared_ptr<Allocator> clone() const override;
 
@@ -38,7 +39,8 @@ class PoolAllocator : public Allocator {
   explicit PoolAllocator(size_t pool_size = 1024 * 1024);  // Default 1MB pool
   ~PoolAllocator();
 
-  void* allocate(size_t size, size_t alignment = alignof(std::max_align_t)) override;
+  void* allocate(size_t size,
+                 size_t alignment = alignof(std::max_align_t)) override;
   void deallocate(void* ptr, size_t size) override;
   std::shared_ptr<Allocator> clone() const override;
 
@@ -50,9 +52,11 @@ class PoolAllocator : public Allocator {
 // Aligned allocator for SIMD operations (ensures proper alignment)
 class AlignedAllocator : public Allocator {
  public:
-  explicit AlignedAllocator(size_t alignment = 64);  // Default 64-byte alignment for AVX
+  explicit AlignedAllocator(
+      size_t alignment = 64);  // Default 64-byte alignment for AVX
 
-  void* allocate(size_t size, size_t alignment = alignof(std::max_align_t)) override;
+  void* allocate(size_t size,
+                 size_t alignment = alignof(std::max_align_t)) override;
   void deallocate(void* ptr, size_t size) override;
   std::shared_ptr<Allocator> clone() const override;
 
@@ -61,4 +65,3 @@ class AlignedAllocator : public Allocator {
 };
 
 }  // namespace dragon_tensor
-

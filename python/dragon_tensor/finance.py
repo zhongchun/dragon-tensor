@@ -5,8 +5,6 @@ Provides financial-specific functions optimized for quantitative analysis,
 including rolling window statistics, correlation, covariance, and returns.
 """
 
-from typing import Optional
-
 try:
     import dragon_tensor
 except ImportError:

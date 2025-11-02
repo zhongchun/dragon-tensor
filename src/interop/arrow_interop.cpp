@@ -34,4 +34,3 @@ namespace dragon_tensor {
 // template Tensor<double> from_arrow_array(const arrow::Array&);
 
 }  // namespace dragon_tensor
-

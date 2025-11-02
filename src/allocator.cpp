@@ -71,7 +71,8 @@ struct PoolAllocator::Impl {
   size_t current_offset;
   bool owns_pool;
 
-  Impl(size_t size) : pool_ptr(nullptr), pool_size(size), current_offset(0), owns_pool(true) {
+  Impl(size_t size)
+      : pool_ptr(nullptr), pool_size(size), current_offset(0), owns_pool(true) {
     pool_ptr = std::malloc(pool_size);
     if (pool_ptr == nullptr) {
       throw std::bad_alloc();
@@ -86,7 +87,8 @@ struct PoolAllocator::Impl {
   }
 };
 
-PoolAllocator::PoolAllocator(size_t pool_size) : impl_(std::make_unique<Impl>(pool_size)) {}
+PoolAllocator::PoolAllocator(size_t pool_size)
+    : impl_(std::make_unique<Impl>(pool_size)) {}
 
 PoolAllocator::~PoolAllocator() = default;
 
@@ -96,7 +98,8 @@ void* PoolAllocator::allocate(size_t size, size_t alignment) {
   }
 
   size_t aligned_size = HeapAllocator::align_size(size, alignment);
-  size_t aligned_offset = HeapAllocator::align_size(impl_->current_offset, alignment);
+  size_t aligned_offset =
+      HeapAllocator::align_size(impl_->current_offset, alignment);
 
   // Check if there's enough space in the pool
   if (aligned_offset + aligned_size > impl_->pool_size) {
@@ -126,7 +129,8 @@ std::shared_ptr<Allocator> PoolAllocator::clone() const {
 // AlignedAllocator Implementation
 // ============================================================================
 
-AlignedAllocator::AlignedAllocator(size_t alignment) : default_alignment_(alignment) {
+AlignedAllocator::AlignedAllocator(size_t alignment)
+    : default_alignment_(alignment) {
   // Validate alignment is a power of 2
   if ((alignment & (alignment - 1)) != 0) {
     throw std::invalid_argument("Alignment must be a power of 2");
@@ -148,4 +152,3 @@ std::shared_ptr<Allocator> AlignedAllocator::clone() const {
 }
 
 }  // namespace dragon_tensor
-

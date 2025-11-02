@@ -9,7 +9,7 @@ Provides Pythonic wrappers for tensor persistence, including:
 
 import contextlib
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 try:
     import dragon_tensor

@@ -22,23 +22,13 @@ except ImportError:
 
 import dragon_tensor as dt
 
-try:
-    from dragon_tensor.wrapper import (
-        from_numpy,
-        to_numpy,
-        from_pandas,
-        to_pandas,
-        from_torch,
-        to_torch,
-    )
-except ImportError:
-    # Fallback if wrapper is not available
-    from_numpy = dt.from_numpy_double
-    to_numpy = lambda t: t.to_numpy()
-    from_pandas = dt.from_pandas_series
-    to_pandas = lambda t, **kwargs: pd.Series(t.to_numpy())
-    from_torch = dt.from_torch
-    to_torch = lambda t, **kwargs: torch.from_numpy(t.to_numpy())
+# Use functions directly from dragon_tensor
+from_numpy = dt.from_numpy_double
+to_numpy = lambda t: t.to_numpy()
+from_pandas = dt.from_pandas_series
+to_pandas = lambda t, **kwargs: pd.Series(t.to_numpy()) if HAS_PANDAS else None
+from_torch = dt.from_torch
+to_torch = lambda t, **kwargs: torch.from_numpy(t.to_numpy()) if HAS_TORCH else None
 
 
 def example_numpy_integration():

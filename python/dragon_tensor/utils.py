@@ -19,7 +19,7 @@ except ImportError:
     HAS_TORCH = False
 
 try:
-    import pyarrow as pa
+    import pyarrow  # noqa: F401
 
     HAS_ARROW = True
 except ImportError:

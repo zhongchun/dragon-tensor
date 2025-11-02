@@ -716,7 +716,8 @@ dragon-tensor/
 ├── pyproject.toml                 # Python package metadata
 ├── build.sh                       # Automated build script
 ├── format.sh                      # Code formatting script
-├── test_build.sh                  # Build verification script
+├── scripts/
+│   └── test_build.sh              # Build verification script
 ├── requirements.txt               # Python dependencies
 │
 ├── include/
@@ -882,7 +883,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 Before submitting:
 
 1. Run `./format.sh` to ensure code is properly formatted
-2. Run `./test_build.sh` to verify the build works
+2. Run `./scripts/test_build.sh` to verify the build works
 3. Ensure all tests pass
 4. Update documentation if needed
 

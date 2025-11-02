@@ -1,6 +1,5 @@
 from pybind11.setup_helpers import Pybind11Extension, build_ext
-from setuptools import setup, find_packages
-from pybind11 import get_cmake_dir
+from setuptools import setup
 import pybind11
 import os
 import sys

@@ -34,8 +34,8 @@ class ArrowBackend : public Backend {
   [[nodiscard]] bool is_readable() const override { return true; }
 
   // Arrow-specific methods
-  // std::shared_ptr<arrow::RecordBatch> read_batch(size_t offset, size_t length);
-  // void write_batch(const arrow::RecordBatch& batch);
+  // std::shared_ptr<arrow::RecordBatch> read_batch(size_t offset, size_t
+  // length); void write_batch(const arrow::RecordBatch& batch);
 
  private:
   std::string path_;
@@ -48,4 +48,3 @@ class ArrowBackend : public Backend {
 // Factory function for Arrow backend (declared in backend.h)
 
 }  // namespace dragon_tensor
-

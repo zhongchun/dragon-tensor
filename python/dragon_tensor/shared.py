@@ -5,8 +5,6 @@ Provides functions for creating and managing shared-memory tensors
 for cross-process access.
 """
 
-from typing import Optional
-
 # Import Layout from the parent package
 # This will work because Layout is exported early in __init__.py
 # If not available, use a fallback
