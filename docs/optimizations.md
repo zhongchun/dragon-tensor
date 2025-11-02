@@ -1,42 +1,46 @@
 # Performance Optimizations for Dragon Tensor
 
-This document outlines key performance optimizations that can be applied to improve the efficiency of Dragon Tensor operations.
+This document outlines key performance optimizations that can be applied to improve the efficiency of Dragon Tensor operations. The optimizations are organized according to the 5-layer architecture defined in the requirements document (v0.3): Python API Layer, Interop Layer, Tensor Core, Buffer Layer, and Backend Abstraction Layer.
 
 ## Table of Contents
 
 - [Optimization Summary Table](#optimization-summary-table)
   - [Quick Reference](#quick-reference)
-- [1. Memory Allocation Optimizations](#1-memory-allocation-optimizations)
-- [2. In-Place Operator Optimizations](#2-in-place-operator-optimizations)
-- [3. Scalar Operations Optimization](#3-scalar-operations-optimization)
-- [4. Rolling Window Optimization (Sliding Window)](#4-rolling-window-optimization-sliding-window)
-- [5. Matrix Multiplication Optimization](#5-matrix-multiplication-optimization)
-- [6. Comparison Operations Optimization](#6-comparison-operations-optimization)
-- [7. Axis Operations Cache Optimization](#7-axis-operations-cache-optimization)
-- [8. Transpose Optimization](#8-transpose-optimization)
-- [9. Early Exit Optimizations](#9-early-exit-optimizations)
-- [10. SIMD Vectorization](#10-simd-vectorization)
-- [11. Memory Pool for Small Tensors](#11-memory-pool-for-small-tensors)
-- [12. Lazy Evaluation for Chained Operations](#12-lazy-evaluation-for-chained-operations)
+- [1. Memory Allocation Optimizations](#1-memory-allocation-optimizations) (Tensor Core)
+- [2. In-Place Operator Optimizations](#2-in-place-operator-optimizations) (Tensor Core)
+- [3. Scalar Operations Optimization](#3-scalar-operations-optimization) (Tensor Core)
+- [4. Rolling Window Optimization (Sliding Window)](#4-rolling-window-optimization-sliding-window) (Tensor Core)
+- [5. Matrix Multiplication Optimization](#5-matrix-multiplication-optimization) (Tensor Core)
+- [6. Comparison Operations Optimization](#6-comparison-operations-optimization) (Tensor Core)
+- [7. Axis Operations Cache Optimization](#7-axis-operations-cache-optimization) (Tensor Core)
+- [8. Transpose Optimization](#8-transpose-optimization) (Tensor Core)
+- [9. Zero-Copy Arrow Integration](#9-zero-copy-arrow-integration) (Interop Layer)
+- [10. Allocator Optimization](#10-allocator-optimization) (Buffer Layer)
+- [11. Early Exit Optimizations](#11-early-exit-optimizations) (Tensor Core)
+- [12. SIMD Vectorization](#12-simd-vectorization) (Tensor Core)
+- [13. Expression Templates (Lazy Evaluation)](#13-expression-templates-lazy-evaluation) (Tensor Core)
+- [14. Backend Selection Optimization](#14-backend-selection-optimization) (Backend Layer)
 - [Priority Ranking](#priority-ranking)
 - [Implementation Notes](#implementation-notes)
 
 ## Optimization Summary Table
 
-| # | Optimization | Priority | Effort | Expected Gain | Location |
-|---|-------------|----------|--------|---------------|----------|
-| 1 | Memory allocation (resize vs reserve+push_back) | High | Easy | 20-30% faster | Arithmetic ops |
-| 2 | In-place operators (remove temporaries) | High | Easy | 50-70% faster | `operator+=`, etc. |
-| 3 | Scalar operations (remove copies) | High | Easy | 30-40% faster | Scalar ops |
-| 4 | Rolling window (sliding algorithm) | High | Medium | 5-10x faster | Rolling ops |
-| 5 | Matrix multiplication (loop reordering) | Medium | Medium | 2-4x faster | `matmul()` |
-| 6 | Comparison operations (`memcmp`) | Medium | Easy | 3-5x faster | `operator==` |
-| 7 | Axis operations (cache optimization) | Medium | Medium | 20-30% faster | Axis reductions |
-| 8 | Transpose (blocking algorithm) | Medium | Medium | 2-3x faster | `transpose()` |
-| 9 | Early exit optimizations | Low | Easy | Varies | Various |
-| 10 | SIMD vectorization | Low | High | 2-4x faster | All element-wise |
-| 11 | Memory pool for small tensors | Low | High | 10-20% faster | Construction |
-| 12 | Expression templates (lazy eval) | Low | Very High | 2-3x faster | Arithmetic ops |
+| # | Optimization | Priority | Effort | Expected Gain | Layer | Location |
+|---|-------------|----------|--------|---------------|-------|----------|
+| 1 | Memory allocation (resize vs reserve+push_back) | High | Easy | 20-30% faster | Tensor Core | Arithmetic ops |
+| 2 | In-place operators (remove temporaries) | High | Easy | 50-70% faster | Tensor Core | `operator+=`, etc. |
+| 3 | Scalar operations (remove copies) | High | Easy | 30-40% faster | Tensor Core | Scalar ops |
+| 4 | Rolling window (sliding algorithm) | High | Medium | 5-10x faster | Tensor Core | Rolling ops |
+| 5 | Matrix multiplication (loop reordering) | Medium | Medium | 2-4x faster | Tensor Core | `matmul()` |
+| 6 | Comparison operations (`memcmp`) | Medium | Easy | 3-5x faster | Tensor Core | `operator==` |
+| 7 | Axis operations (cache optimization) | Medium | Medium | 20-30% faster | Tensor Core | Axis reductions |
+| 8 | Transpose (blocking algorithm) | Medium | Medium | 2-3x faster | Tensor Core | `transpose()` |
+| 9 | Zero-copy Arrow integration | Medium | Medium | Eliminates copies | Interop Layer | Arrow conversion |
+| 10 | Allocator optimization (pool for small tensors) | Medium | Medium | 10-20% faster | Buffer Layer | Construction |
+| 11 | Early exit optimizations | Low | Easy | Varies | Tensor Core | Various |
+| 12 | SIMD vectorization | Low | High | 2-4x faster | Tensor Core | All element-wise |
+| 13 | Expression templates (lazy eval) | Low | Very High | 2-3x faster | Tensor Core | Arithmetic ops |
+| 14 | Backend selection optimization | Low | Medium | 10-15% faster | Backend Layer | Storage ops |
 
 ### Quick Reference
 
@@ -52,6 +56,8 @@ This document outlines key performance optimizations that can be applied to impr
 ## 1. Memory Allocation Optimizations
 
 ### Current Issue: Reserve + Push Back
+
+**Layer**: Tensor Core
 
 **Location**: `src/tensor.cpp` - Arithmetic operations (`operator+`, `operator-`, `operator*`, `operator/`)
 
@@ -82,6 +88,8 @@ for (size_t i = 0; i < data_.size(); ++i) {
 ## 2. In-Place Operator Optimizations
 
 ### Current Issue: Unnecessary Temporary Creation
+
+**Layer**: Tensor Core
 
 **Location**: `src/tensor.cpp` - In-place operators (`operator+=`, `operator-=`, `operator*=`, `operator/=`)
 
@@ -117,6 +125,8 @@ Tensor<T>& Tensor<T>::operator+=(const Tensor& other) {
 ## 3. Scalar Operations Optimization
 
 ### Current Issue: Unnecessary Copy
+
+**Layer**: Tensor Core
 
 **Location**: `src/tensor.cpp` - Scalar operators (`operator+(scalar)`, etc.)
 
@@ -155,6 +165,8 @@ Tensor<T> Tensor<T>::operator+(T scalar) const {
 ## 4. Rolling Window Optimization (Sliding Window)
 
 ### Current Issue: O(n×w) Complexity
+
+**Layer**: Tensor Core
 
 **Location**: `src/tensor.cpp` - Rolling operations (`rolling_mean`, `rolling_sum`, etc.)
 
@@ -203,6 +215,8 @@ Tensor<T> Tensor<T>::rolling_mean(size_t window) const {
 
 ### Current Issue: Naive O(n³) Algorithm
 
+**Layer**: Tensor Core
+
 **Location**: `src/tensor.cpp` - `matmul()`
 
 **Problem**: Basic triple-loop implementation with poor cache locality.
@@ -245,6 +259,8 @@ for (size_t i = 0; i < shape_[0]; ++i) {
 
 ### Current Issue: Element-by-Element Comparison
 
+**Layer**: Tensor Core
+
 **Location**: `src/tensor.cpp` - `operator==`
 
 **Problem**: Loop with early exit is still slower than memcmp for simple types.
@@ -275,6 +291,8 @@ bool Tensor<T>::operator==(const Tensor& other) const {
 
 ### Current Issue: Poor Cache Locality
 
+**Layer**: Tensor Core
+
 **Location**: `src/tensor.cpp` - Axis operations (`sum(axis)`, `mean(axis)`, etc.)
 
 **Problem**: When reducing along axis=0, accessing column-major causes cache misses.
@@ -295,6 +313,8 @@ bool Tensor<T>::operator==(const Tensor& other) const {
 
 ### Current Issue: Naive Element-by-Element Copy
 
+**Layer**: Tensor Core
+
 **Location**: `src/tensor.cpp` - `transpose()`
 
 **Problem**: Non-contiguous memory access patterns cause cache misses.
@@ -311,9 +331,100 @@ constexpr size_t BLOCK_SIZE = 64;  // Cache line friendly
 
 ---
 
-## 9. Early Exit Optimizations
+## 9. Zero-Copy Arrow Integration
+
+### Current Issue: Data Copying for Arrow Conversion
+
+**Layer**: Interop Layer
+
+**Location**: `src/interop/arrow_interop.cpp` (future) - Arrow conversion functions
+
+**Problem**: Converting between Dragon Tensor and Arrow Arrays may require copying data when memory layouts are incompatible.
+
+**Optimization**: Leverage Arrow's zero-copy capabilities:
+
+```cpp
+// Optimized: Check if Arrow array memory can be directly wrapped
+Tensor from_arrow(const arrow::Array& array) {
+  // Check if Arrow buffer is compatible (contiguous, correct dtype, aligned)
+  if (array.data()->buffers.size() == 2 && 
+      array.IsNull() == 0 && 
+      is_contiguous_layout(array)) {
+    // Zero-copy: wrap Arrow memory directly
+    auto buffer = std::make_shared<ArrowBuffer>(array.data()->buffers[1]);
+    return Tensor(buffer, shape_from_arrow(array), dtype_from_arrow(array));
+  }
+  // Fallback: copy for incompatible layouts
+  return copy_from_arrow(array);
+}
+
+// Optimized: Create Arrow array view when possible
+std::shared_ptr<arrow::Array> to_arrow() const {
+  if (is_contiguous() && dtype_matches_arrow()) {
+    // Zero-copy: Arrow array wraps our memory
+    return arrow::MakeArray(std::make_shared<ArrowArrayData>(buffer_));
+  }
+  // Fallback: copy for incompatible layouts
+  return copy_to_arrow();
+}
+```
+
+**Expected Gain**: Eliminates data copying overhead for compatible layouts, enables seamless Parquet integration
+
+---
+
+## 10. Allocator Optimization
+
+### Opportunity: Optimized Memory Allocation Strategies
+
+**Layer**: Buffer Layer
+
+**Location**: `src/buffer.cpp` - Allocator implementations
+
+**Problem**: Generic heap allocation has overhead for frequently allocated small tensors.
+
+**Optimization**: Implement pool allocator for small tensors:
+
+```cpp
+// Pool allocator for small tensors (< 1KB)
+class PoolAllocator : public Allocator {
+private:
+  struct Pool {
+    std::vector<std::unique_ptr<char[]>> blocks_;
+    std::vector<size_t> free_list_;
+    size_t block_size_;
+  };
+  std::unordered_map<size_t, Pool> pools_;
+  
+public:
+  void* allocate(size_t size, size_t alignment) override {
+    if (size < 1024) {
+      // Use pool for small allocations
+      auto& pool = pools_[size];
+      if (!pool.free_list_.empty()) {
+        size_t idx = pool.free_list_.back();
+        pool.free_list_.pop_back();
+        return pool.blocks_[idx].get();
+      }
+      // Allocate new block
+      pool.blocks_.emplace_back(std::make_unique<char[]>(size));
+      return pool.blocks_.back().get();
+    }
+    // Use standard allocator for large tensors
+    return std::aligned_alloc(alignment, size);
+  }
+};
+```
+
+**Expected Gain**: 10-20% faster for many small tensor operations, reduced fragmentation
+
+---
+
+## 11. Early Exit Optimizations
 
 ### Current Issue: No Short-Circuit in Comparison
+
+**Layer**: Tensor Core
 
 **Location**: `src/tensor.cpp` - Various operations
 
@@ -321,11 +432,13 @@ constexpr size_t BLOCK_SIZE = 64;  // Cache line friendly
 
 ---
 
-## 10. SIMD Vectorization
+## 12. SIMD Vectorization
 
 ### Opportunity: Use CPU SIMD Instructions
 
-**Location**: All element-wise operations
+**Layer**: Tensor Core
+
+**Location**: All element-wise operations in `src/tensor.cpp`
 
 **Approach**: Use compiler intrinsics or libraries like xsimd for:
 
@@ -333,35 +446,89 @@ constexpr size_t BLOCK_SIZE = 64;  // Cache line friendly
 - Mathematical functions (`abs`, `sqrt`, `exp`, `log`)
 - Statistical reductions (`sum`, `mean`)
 
-**Expected Gain**: 2-4x faster on modern CPUs
+**Example**:
+
+```cpp
+#include <xsimd/xsimd.hpp>
+
+// SIMD-optimized element-wise addition
+template<typename T>
+void add_simd(const T* a, const T* b, T* result, size_t n) {
+  using batch_type = xsimd::batch<T>;
+  size_t simd_size = batch_type::size;
+  size_t i = 0;
+  
+  for (; i + simd_size <= n; i += simd_size) {
+    auto va = xsimd::load_aligned(&a[i]);
+    auto vb = xsimd::load_aligned(&b[i]);
+    auto vresult = va + vb;
+    vresult.store_aligned(&result[i]);
+  }
+  
+  // Handle remaining elements
+  for (; i < n; ++i) {
+    result[i] = a[i] + b[i];
+  }
+}
+```
+
+**Expected Gain**: 2-4x faster on modern CPUs with AVX/AVX2 support
 
 ---
 
-## 11. Memory Pool for Small Tensors
+## 13. Expression Templates (Lazy Evaluation)
 
-### Opportunity: Reduce Allocation Overhead
+### Opportunity: Defer Computation for Complex Expressions
 
-**Location**: Tensor construction
+**Layer**: Tensor Core
 
-**Approach**: Use memory pools for frequently allocated small tensors (e.g., < 1KB).
-
-**Expected Gain**: 10-20% faster for many small tensor operations
-
----
-
-## 12. Lazy Evaluation for Chained Operations
-
-### Opportunity: Expression Templates
-
-**Location**: Arithmetic operations
+**Location**: Arithmetic operations in `src/tensor.cpp`
 
 **Approach**: Use expression templates to defer computation until final assignment, enabling:
 
 - Common subexpression elimination
 - Fused operations (e.g., `a + b * c` without intermediate)
+- Loop fusion for chained operations
 
-**Complexity**: High - requires significant refactoring
-**Expected Gain**: 2-3x faster for complex expressions
+**Complexity**: Very High - requires significant refactoring of Tensor class and operations
+
+**Expected Gain**: 2-3x faster for complex expressions with multiple chained operations
+
+---
+
+## 14. Backend Selection Optimization
+
+### Opportunity: Intelligent Backend Selection
+
+**Layer**: Backend Abstraction Layer
+
+**Location**: `src/backend/backend_factory.cpp` (future) - Backend selection logic
+
+**Problem**: Choosing the optimal backend (Memory, MMap, SharedMemory, Arrow) based on use case characteristics.
+
+**Optimization**: Implement intelligent backend selection:
+
+```cpp
+// Optimize backend selection based on data characteristics
+std::shared_ptr<Backend> select_backend(const BackendConfig& config) {
+  if (config.size > LARGE_THRESHOLD && config.persistent) {
+    // Large, persistent data -> use MMapBackend
+    return std::make_shared<MMapBackend>(config.path);
+  }
+  if (config.shared && config.multi_process) {
+    // Multi-process access -> use SharedMemoryBackend
+    return std::make_shared<SharedMemoryBackend>(config.name);
+  }
+  if (config.columnar_query && config.arrow_compatible) {
+    // Columnar analytics -> use ArrowBackend
+    return std::make_shared<ArrowBackend>(config.schema);
+  }
+  // Default to MemoryBackend for small, temporary data
+  return std::make_shared<MemoryBackend>();
+}
+```
+
+**Expected Gain**: 10-15% faster through optimal storage backend selection based on access patterns
 
 ---
 
@@ -369,22 +536,25 @@ constexpr size_t BLOCK_SIZE = 64;  // Cache line friendly
 
 1. **High Priority** (Easy wins):
 
-   - Fix `reserve()` + `push_back()` → `resize()` + assignment
-   - Optimize in-place operators (remove temporary copies)
-   - Optimize scalar operations (remove unnecessary copies)
-   - Rolling window sliding algorithm
+   - Fix `reserve()` + `push_back()` → `resize()` + assignment (Tensor Core)
+   - Optimize in-place operators (remove temporary copies) (Tensor Core)
+   - Optimize scalar operations (remove unnecessary copies) (Tensor Core)
+   - Rolling window sliding algorithm (Tensor Core)
 
 2. **Medium Priority** (Moderate effort):
 
-   - Matrix multiplication loop reordering
-   - Comparison operations optimization
-   - Transpose blocking
+   - Matrix multiplication loop reordering (Tensor Core)
+   - Comparison operations optimization (Tensor Core)
+   - Transpose blocking (Tensor Core)
+   - Zero-copy Arrow integration (Interop Layer)
+   - Allocator optimization with pool allocator (Buffer Layer)
 
 3. **Low Priority** (Complex/Advanced):
 
-   - SIMD vectorization
-   - Memory pools
-   - Expression templates
+   - Early exit optimizations (Tensor Core)
+   - SIMD vectorization (Tensor Core)
+   - Expression templates (Tensor Core)
+   - Backend selection optimization (Backend Layer)
 
 ---
 
