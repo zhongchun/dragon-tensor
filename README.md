@@ -7,31 +7,45 @@ A high-performance tensor library written in C++17, designed specifically for fi
 ## Table of Contents
 
 - [Features](#features)
-- [Quick Start](#quick-start)
-  - [Python Usage](#python-usage)
-  - [C++ Usage](#c-usage)
 - [Installation & Building](#installation--building)
   - [Prerequisites](#prerequisites)
   - [Quick Build with Script](#quick-build-with-script)
   - [Building from Source](#building-from-source)
   - [Building Python Wheel](#building-python-wheel)
-  - [Code Formatting](#code-formatting)
 - [Usage Examples](#usage-examples)
+  - [Quick Start](#quick-start)
+    - [Python Usage](#python-usage)
+    - [C++ Usage](#c-usage)
   - [Basic Operations](#basic-operations)
   - [Financial Analysis Examples](#financial-analysis-examples)
   - [Integration Examples](#integration-examples)
   - [Advanced: Persistent Storage](#advanced-persistent-storage)
   - [Advanced: Shared Memory](#advanced-shared-memory)
 - [API Reference](#api-reference)
-- [Documentation](#documentation)
+  - [Quick Reference](#quick-reference)
 - [Project Structure & Architecture](#project-structure--architecture)
+  - [Architecture Overview](#architecture-overview)
+  - [Project Structure](#project-structure)
 - [Performance](#performance)
 - [Running Examples](#running-examples)
+  - [C++ Examples](#c-examples)
+  - [Python Examples](#python-examples)
 - [Troubleshooting](#troubleshooting)
+  - [pybind11 not found](#pybind11-not-found)
+  - [NumPy not found](#numpy-not-found)
+  - [Python module not found after build](#python-module-not-found-after-build)
 - [Contributing](#contributing)
+  - [Code Formatting](#code-formatting)
 - [Version Management](#version-management)
 - [Version History](#version-history)
+  - [v0.3 (Current)](#v03-current)
+  - [v0.2](#v02)
+  - [v0.1](#v01)
+- [Documentation](#documentation)
+  - [Quick Links](#quick-links)
 - [License & Citation](#license--citation)
+  - [License](#license)
+  - [Citation](#citation)
 
 ## Features
 
@@ -51,85 +65,6 @@ A high-performance tensor library written in C++17, designed specifically for fi
 - **Shared Memory**: Cross-process tensor sharing via POSIX shared memory
 - **Flexible Layouts**: Row-major and column-major storage layouts for query optimization
 - **Robust File Format**: Versioned format with magic number, endian detection, and checksums
-
-## Quick Start
-
-### Python Usage
-
-**Note:** After building, install the Python package:
-
-```bash
-pip install .
-# Or if you used build.sh with --install, it's already installed
-```
-
-```python
-import numpy as np
-import dragon_tensor as dt
-
-# Create a tensor from numpy array (zero-copy)
-arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float64)
-tensor = dt.from_numpy_double(arr)
-
-# Basic operations
-print(tensor.sum())      # 15.0
-print(tensor.mean())    # 3.0
-print(tensor.std())     # 1.414...
-
-# Financial operations
-returns = tensor.returns()
-rolling_mean = tensor.rolling_mean(window=3)
-
-# Convert back to numpy (zero-copy)
-result = tensor.to_numpy()
-
-# Arrow integration (zero-copy)
-import pyarrow as pa
-arrow_arr = pa.array([1.0, 2.0, 3.0, 4.0, 5.0], type=pa.float64())
-arrow_tensor = dt.from_arrow(arrow_arr)  # Zero-copy conversion
-result_arrow = arrow_tensor.to_arrow()  # Convert back (zero-copy)
-```
-
-### C++ Usage
-
-After building, the C++ headers are in `include/dragon_tensor/` and the library is in `build/libdragon_tensor.a`.
-
-```cpp
-#include <dragon_tensor/tensor.h>
-#include <iostream>
-
-using namespace dragon_tensor;
-
-int main() {
-    // Create a tensor
-    TensorDouble prices({5}, {100.0, 102.0, 101.0, 105.0, 108.0});
-    
-    // Calculate returns
-    auto returns = prices.returns();
-    
-    // Rolling statistics
-    auto rolling_avg = prices.rolling_mean(3);
-    auto rolling_std = prices.rolling_std(3);
-    
-    // Statistical operations
-    std::cout << "Mean: " << prices.mean() << std::endl;
-    std::cout << "Std: " << prices.std() << std::endl;
-    
-    return 0;
-}
-```
-
-Compile with:
-
-```bash
-g++ -std=c++17 -I./include your_program.cpp -L./build -ldragon_tensor -o your_program
-```
-
-Or run the example:
-
-```bash
-./build/examples/example_basic
-```
 
 ## Installation & Building
 
@@ -292,39 +227,86 @@ pip install dist/dragon_tensor-*.whl
 - **Parallel builds**: Automatically uses all available CPU cores
 - **Release flags**: `-O3 -DNDEBUG` for optimized production builds
 
-### Code Formatting
+## Usage Examples
 
-The project uses **Google C++ Style Guide** as the default coding style, enforced via a `.clang-format` configuration file. This ensures all C++ code follows consistent formatting automatically.
+### Quick Start
 
-#### Using format.sh
+#### Python Usage
+
+**Note:** After building, install the Python package:
 
 ```bash
-# Format all files (C++ and Python)
-./format.sh
-
-# Check formatting without modifying files
-./format.sh --check
-
-# Format only C++ files (uses .clang-format with Google style)
-./format.sh -C
-
-# Format only Python files
-./format.sh -P
+pip install .
+# Or if you used build.sh with --install, it's already installed
 ```
 
-**C++ Style**: Google C++ Style Guide (enforced via `.clang-format`)  
-**Python Style**: Black formatter
+```python
+import numpy as np
+import dragon_tensor as dt
 
-**Note**: When `clang-format` is run in this project (including via IDEs and editors), it will automatically use the Google style configuration from `.clang-format`.
+# Create a tensor from numpy array (zero-copy)
+arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float64)
+tensor = dt.from_numpy_double(arr)
 
-The format script automatically:
+# Basic operations
+print(tensor.sum())      # 15.0
+print(tensor.mean())    # 3.0
+print(tensor.std())     # 1.414...
 
-- Formats C++ files using `clang-format` with Google style
-- Formats Python files using `black`
-- Installs missing Python formatting tools if needed
-- Skips build directories and other non-source files
+# Financial operations
+returns = tensor.returns()
+rolling_mean = tensor.rolling_mean(window=3)
 
-## Usage Examples
+# Convert back to numpy (zero-copy)
+result = tensor.to_numpy()
+
+# Arrow integration (zero-copy)
+import pyarrow as pa
+arrow_arr = pa.array([1.0, 2.0, 3.0, 4.0, 5.0], type=pa.float64())
+arrow_tensor = dt.from_arrow(arrow_arr)  # Zero-copy conversion
+result_arrow = arrow_tensor.to_arrow()  # Convert back (zero-copy)
+```
+
+#### C++ Usage
+
+After building, the C++ headers are in `include/dragon_tensor/` and the library is in `build/libdragon_tensor.a`.
+
+```cpp
+#include <dragon_tensor/tensor.h>
+#include <iostream>
+
+using namespace dragon_tensor;
+
+int main() {
+    // Create a tensor
+    TensorDouble prices({5}, {100.0, 102.0, 101.0, 105.0, 108.0});
+    
+    // Calculate returns
+    auto returns = prices.returns();
+    
+    // Rolling statistics
+    auto rolling_avg = prices.rolling_mean(3);
+    auto rolling_std = prices.rolling_std(3);
+    
+    // Statistical operations
+    std::cout << "Mean: " << prices.mean() << std::endl;
+    std::cout << "Std: " << prices.std() << std::endl;
+    
+    return 0;
+}
+```
+
+Compile with:
+
+```bash
+g++ -std=c++17 -I./include your_program.cpp -L./build -ldragon_tensor -o your_program
+```
+
+Or run the example:
+
+```bash
+./build/examples/example_basic
+```
 
 ### Basic Operations
 
@@ -906,6 +888,38 @@ Before submitting:
 2. Run `./scripts/test_build.sh` to verify the build works
 3. Ensure all tests pass
 4. Update documentation if needed
+
+### Code Formatting
+
+The project uses **Google C++ Style Guide** as the default coding style, enforced via a `.clang-format` configuration file. This ensures all C++ code follows consistent formatting automatically.
+
+#### Using format.sh
+
+```bash
+# Format all files (C++ and Python)
+./format.sh
+
+# Check formatting without modifying files
+./format.sh --check
+
+# Format only C++ files (uses .clang-format with Google style)
+./format.sh -C
+
+# Format only Python files
+./format.sh -P
+```
+
+**C++ Style**: Google C++ Style Guide (enforced via `.clang-format`)  
+**Python Style**: Black formatter
+
+**Note**: When `clang-format` is run in this project (including via IDEs and editors), it will automatically use the Google style configuration from `.clang-format`.
+
+The format script automatically:
+
+- Formats C++ files using `clang-format` with Google style
+- Formats Python files using `black`
+- Installs missing Python formatting tools if needed
+- Skips build directories and other non-source files
 
 ## Version Management
 
