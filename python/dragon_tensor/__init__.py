@@ -129,6 +129,8 @@ try:
     to_pandas = utils.to_pandas
     from_torch = utils.from_torch
     to_torch = utils.to_torch
+    from_arrow = utils.from_arrow
+    to_arrow = utils.to_arrow
     save = io.save
     load = io.load
     open = io.open
@@ -153,6 +155,8 @@ try:
             "to_pandas",
             "from_torch",
             "to_torch",
+            "from_arrow",
+            "to_arrow",
             "save",
             "load",
             "open",
