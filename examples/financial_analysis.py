@@ -46,7 +46,7 @@ def example_volatility_analysis():
     returns = tensor.returns()
 
     # Rolling volatility (annualized)
-    rolling_vol = returns.rolling_std(window=20) * np.sqrt(252)  # Annualized
+    rolling_vol = returns.rolling_std(20) * np.sqrt(252)  # Annualized
 
     print(f"Full period volatility: {returns.std() * np.sqrt(252):.4f}")
     print(f"Rolling volatility (last 5): {rolling_vol.to_numpy()[-5:]}")
@@ -63,8 +63,8 @@ def example_moving_averages():
     tensor = dt.from_numpy(prices)
 
     # Short and long moving averages
-    short_ma = tensor.rolling_mean(window=5)
-    long_ma = tensor.rolling_mean(window=20)
+    short_ma = tensor.rolling_mean(5)
+    long_ma = tensor.rolling_mean(20)
 
     # Generate signals (simplified)
     short_vals = short_ma.to_numpy()
@@ -94,7 +94,7 @@ def example_risk_metrics():
     std_return = returns.std()
 
     # Rolling metrics
-    rolling_std = returns.rolling_std(window=20)
+    rolling_std = returns.rolling_std(20)
 
     print(f"Mean Return: {mean_return:.4f}")
     print(f"Std Return: {std_return:.4f}")
@@ -115,8 +115,8 @@ def example_price_levels():
     tensor = dt.from_numpy(prices)
 
     # Rolling max and min (support/resistance)
-    rolling_max = tensor.rolling_max(window=10)
-    rolling_min = tensor.rolling_min(window=10)
+    rolling_max = tensor.rolling_max(10)
+    rolling_min = tensor.rolling_min(10)
 
     print(f"Current Price: {prices[-1]:.2f}")
     print(f"Recent High (10-day): {rolling_max.to_numpy()[-1]:.2f}")

@@ -50,8 +50,8 @@ def example_financial():
     print(f"Returns: {returns.to_numpy()}\n")
 
     # Rolling statistics
-    rolling_mean = tensor.rolling_mean(window=3)
-    rolling_std = tensor.rolling_std(window=3)
+    rolling_mean = tensor.rolling_mean(3)
+    rolling_std = tensor.rolling_std(3)
 
     print(f"Rolling Mean (window=3): {rolling_mean.to_numpy()}")
     print(f"Rolling Std (window=3): {rolling_std.to_numpy()}\n")
