@@ -36,6 +36,27 @@ All build systems will automatically use the new version:
 
 ## Build System
 
+### Optimized Build Architecture
+
+Dragon Tensor uses an **optimized two-stage build process**:
+
+1. **C++ Compilation Stage** (CMake):
+   - Compiles all C++ source files
+   - Builds the static library (`libdragon_tensor.a`)
+   - Generates Python extension module (`.so`/`.dylib`)
+   - Uses optimized build tools (Ninja, ccache)
+
+2. **Python Packaging Stage** (`setup.py`):
+   - Uses pre-built extension module from CMake
+   - No C++ compilation in Python build
+   - Faster builds with better caching
+
+This separation provides:
+- **Faster rebuilds**: ccache caches C++ compilation results
+- **Better parallelization**: CMake handles C++ with optimal job distribution
+- **Consistent builds**: Same C++ build process for all targets
+- **Cleaner separation**: C++ compilation vs Python packaging
+
 ### CMake Configuration
 
 The CMake build system:
@@ -43,13 +64,55 @@ The CMake build system:
 - Compiles all source files from `src/` directory
 - Links backend implementations
 - Generates Python bindings via pybind11
+- **Uses Ninja generator** (if available) for faster builds
+- **Applies Release optimizations** (`-O3 -DNDEBUG`) for production builds
+- **Auto-detects CPU cores** for parallel compilation
+
+### Build Optimizations
+
+The build system includes several optimizations:
+
+#### ccache (Compiler Cache)
+- Automatically enabled if `ccache` is installed
+- Caches compilation results for faster rebuilds
+- Shows cache statistics after build
+- Install: `brew install ccache` (macOS) or `apt-get install ccache` (Linux)
+
+#### Ninja Build System
+- Automatically used if `ninja` is available
+- Faster than traditional Make
+- Better parallel build performance
+- Install: `brew install ninja` (macOS) or `apt-get install ninja-build` (Linux)
+
+#### Parallel Builds
+- Auto-detects number of CPU cores
+- Uses all available cores by default
+- Can be overridden with `-j N` flag: `./build.sh -j 4`
+
+#### Release Optimizations
+- Automatically applies `-O3 -DNDEBUG` for Release builds
+- Optimized for production performance
+- Debug builds use `-g -O0` for debugging
 
 ### Python Package
 
 The Python package:
 - Uses `setup.py` which reads from `VERSION.txt`
-- Compiles C++ extension from source (platform-independent)
+- **Uses pre-built extension module** from CMake build directory
+- No C++ compilation in Python build (faster)
 - Organizes code into submodules: `io`, `finance`, `shared`, `utils`
+- Finds and copies the pre-built extension module automatically
+
+**Build Process:**
+1. Run `./build.sh` to build C++ with CMake
+2. Run `pip install .` or `python -m build --wheel` to create Python package
+3. `setup.py` automatically finds and copies the pre-built extension
+
+**Environment Variables:**
+- `CMAKE_BUILD_DIR`: Override build directory (default: `build`)
+- `USE_CCACHE`: Enable/disable ccache (default: `1`)
+- `USE_NINJA`: Enable/disable Ninja (default: `1`)
+- `MAX_JOBS`: Override number of parallel jobs (default: auto-detect)
 
 ## Project Structure
 
