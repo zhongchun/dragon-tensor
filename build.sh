@@ -167,6 +167,15 @@ if [ "$CLEAN_BUILD" = true ]; then
     find . -type f -name "*.pyc" -delete 2>/dev/null || true
     find . -type f -name "*.pyo" -delete 2>/dev/null || true
     
+    # Clean .so and .dylib files from Python package directory
+    if [ -d "python/dragon_tensor" ]; then
+        SO_FILES=$(find python/dragon_tensor \( -name "*.so" -o -name "*.dylib" \) 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$SO_FILES" -gt 0 ]; then
+            print_info "Removing .so/.dylib files from python/dragon_tensor"
+            find python/dragon_tensor \( -name "*.so" -o -name "*.dylib" \) -delete 2>/dev/null || true
+        fi
+    fi
+
     print_info "Clean completed successfully!"
     
     # If only --clean was specified (no build options), exit here

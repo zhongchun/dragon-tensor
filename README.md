@@ -128,6 +128,7 @@ cd dragon-tensor
 - Removes build directory
 - Removes `dist/` directory (Python wheels and source distributions)
 - Cleans Python artifacts (`*.egg-info`, `__pycache__`, `.pyc`, `.pyo`)
+- Removes `.so` and `.dylib` files from `python/dragon_tensor/` directory
 - If used alone, exits after cleaning (no build)
 - If combined with other options, cleans first then proceeds with build
 
@@ -247,7 +248,7 @@ import dragon_tensor as dt
 
 # Create a tensor from numpy array (zero-copy)
 arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float64)
-tensor = dt.from_numpy_double(arr)
+tensor = dt.from_numpy(arr)
 
 # Basic operations
 print(tensor.sum())      # 15.0
@@ -256,7 +257,7 @@ print(tensor.std())     # 1.414...
 
 # Financial operations
 returns = tensor.returns()
-rolling_mean = tensor.rolling_mean(window=3)
+rolling_mean = tensor.rolling_mean(3)
 
 # Convert back to numpy (zero-copy)
 result = tensor.to_numpy()
@@ -317,7 +318,7 @@ import numpy as np
 
 # Create tensor from numpy array
 arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float64)
-tensor = dt.from_numpy_double(arr)
+tensor = dt.from_numpy(arr)
 
 # Statistical operations
 print(tensor.sum())      # 15.0
@@ -346,7 +347,7 @@ import numpy as np
 
 # Price series
 prices = np.array([100, 102, 101, 105, 108, 110], dtype=np.float64)
-tensor = dt.from_numpy_double(prices)
+tensor = dt.from_numpy(prices)
 
 # Calculate returns
 returns = tensor.returns()
@@ -368,8 +369,8 @@ print("Rolling Std:", rolling_std.to_numpy())
 
 ```python
 # Two asset price series
-asset1 = dt.from_numpy_double(np.array([100, 102, 101, 105, 108], dtype=np.float64))
-asset2 = dt.from_numpy_double(np.array([50, 51, 50.5, 52.5, 54], dtype=np.float64))
+asset1 = dt.from_numpy(np.array([100, 102, 101, 105, 108], dtype=np.float64))
+asset2 = dt.from_numpy(np.array([50, 51, 50.5, 52.5, 54], dtype=np.float64))
 
 # Calculate correlation
 corr = asset1.correlation(asset2)
@@ -390,11 +391,11 @@ import dragon_tensor as dt
 
 # Load financial data
 df = pd.DataFrame({'price': [100, 102, 101, 105, 108]})
-tensor = dt.from_pandas_series(df['price'])
+tensor = dt.from_pandas(df['price'])
 
 # Perform calculations
 returns = tensor.returns()
-rolling_volatility = tensor.rolling_std(window=20)
+rolling_volatility = tensor.rolling_std(20)
 
 # Convert back to pandas
 returns_series = pd.Series(returns.to_numpy(), index=df.index[1:])
@@ -413,7 +414,7 @@ torch_tensor = torch.randn(100, dtype=torch.float64)
 dt_tensor = dt.from_torch(torch_tensor)
 
 # Perform calculations
-result = dt_tensor.rolling_mean(window=10)
+result = dt_tensor.rolling_mean(10)
 
 # Convert back to PyTorch (zero-copy)
 result_torch = result.to_torch()
@@ -434,14 +435,14 @@ tensor = dt.from_arrow(arrow_array)
 
 # Perform financial calculations
 returns = tensor.returns()
-rolling_mean = tensor.rolling_mean(window=3)
+rolling_mean = tensor.rolling_mean(3)
 
 # Convert back to Arrow (zero-copy)
 result_arrow = returns.to_arrow()
 
 # Work with RecordBatches
 data = np.random.randn(252, 1000).astype(np.float64)
-tensor_2d = dt.from_numpy_double(data)
+tensor_2d = dt.from_numpy(data)
 arrow_array_2d = tensor_2d.to_arrow()
 
 # Create RecordBatch from multiple Arrow arrays
@@ -457,7 +458,7 @@ import pyarrow as pa
 
 # Create and save tensor
 prices = np.random.randn(252, 1000).astype(np.float64)
-tensor = dt.from_numpy_double(prices)
+tensor = dt.from_numpy(prices)
 
 # Save to disk with column-major layout (optimized for per-asset queries)
 tensor.save("prices.dt", layout="column")
@@ -826,7 +827,7 @@ After building, you can test the Python bindings:
 python3 -c "import sys; sys.path.insert(0, './build'); \
 import dragon_tensor as dt; import numpy as np; \
 arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float64); \
-tensor = dt.from_numpy_double(arr); \
+tensor = dt.from_numpy(arr); \
 print('Sum:', tensor.sum()); print('Mean:', tensor.mean())"
 
 # Run example scripts (requires proper installation)
