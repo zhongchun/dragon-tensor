@@ -30,6 +30,7 @@ A high-performance tensor library written in C++17, designed specifically for fi
 - [Running Examples](#running-examples)
   - [C++ Examples](#c-examples)
   - [Python Examples](#python-examples)
+  - [Running Python Tests](#running-python-tests)
 - [Troubleshooting](#troubleshooting)
   - [pybind11 not found](#pybind11-not-found)
   - [NumPy not found](#numpy-not-found)
@@ -834,6 +835,60 @@ python3 examples/financial_analysis.py
 python3 examples/integration_examples.py
 ```
 
+### Running Python Tests
+
+The project includes comprehensive pytest test suite located in `python/dragon_tensor/tests/`. To run the tests:
+
+#### Prerequisites
+
+```bash
+# Install test dependencies
+pip install -e ".[test]"
+# or
+pip install pytest pytest-cov
+```
+
+#### Running Tests
+
+```bash
+# Run all tests (from project root)
+PYTHONPATH=python:$PYTHONPATH pytest
+
+# Run with verbose output
+PYTHONPATH=python:$PYTHONPATH pytest -v
+
+# Run a specific test file
+PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py
+
+# Run a specific test class or function
+PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation
+PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation::test_from_numpy_float64
+
+# Run tests matching a pattern
+PYTHONPATH=python:$PYTHONPATH pytest -k finance
+PYTHONPATH=python:$PYTHONPATH pytest -k numpy
+
+# Run with coverage report
+PYTHONPATH=python:$PYTHONPATH pytest --cov=dragon_tensor --cov-report=html
+# Then open htmlcov/index.html in your browser
+
+# Skip tests requiring optional dependencies
+PYTHONPATH=python:$PYTHONPATH pytest -m "not requires_pandas and not requires_torch and not requires_arrow"
+```
+
+**Note:** If you install the package with `pip install -e .`, you can run `pytest` directly without setting `PYTHONPATH`.
+
+#### Test Structure
+
+The test suite includes:
+
+- **`test_basic_operations.py`** (26 tests): Tensor creation, basic operations, arithmetic, matrix operations, tensor types
+- **`test_numpy_integration.py`** (10 tests): NumPy round-trip conversions, dtype handling, edge cases
+- **`test_finance.py`** (12 tests): Returns, rolling statistics, correlation, covariance, financial workflows
+- **`test_io.py`** (10 tests): Save/load operations, memory mapping, layout options, error handling
+
+**Total: 58 tests** covering the core functionality of Dragon Tensor.
+
 ## Troubleshooting
 
 ### pybind11 not found
@@ -886,8 +941,9 @@ Before submitting:
 
 1. Run `./format.sh` to ensure code is properly formatted
 2. Run `./scripts/test_build.sh` to verify the build works
-3. Ensure all tests pass
-4. Update documentation if needed
+3. Run the test suite: `PYTHONPATH=python:$PYTHONPATH pytest`
+4. Ensure all tests pass
+5. Update documentation if needed
 
 ### Code Formatting
 
