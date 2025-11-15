@@ -47,3 +47,8 @@ env/
 *.out
 *.log
 
+# Dragon Tensor data files
+*.dt
+
+.coverage
+

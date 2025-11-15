@@ -7,9 +7,24 @@ This document provides comprehensive API reference for the Dragon Tensor C++ lib
 - [Namespace](#namespace)
 - [Data Types](#data-types)
 - [Tensor Class](#tensor-class)
+  - [Type Aliases](#type-aliases)
+  - [Constructors](#constructors)
+  - [Shape Operations](#shape-operations)
+  - [Element Access](#element-access)
+  - [Data Access](#data-access)
+  - [Arithmetic Operations](#arithmetic-operations)
+  - [Comparison Operations](#comparison-operations)
+  - [Mathematical Operations](#mathematical-operations)
+  - [Statistical Operations](#statistical-operations)
+  - [Financial Operations](#financial-operations)
+  - [Slicing Operations](#slicing-operations)
+  - [Matrix Operations](#matrix-operations)
+  - [Copy Operations](#copy-operations)
+  - [Storage Operations](#storage-operations)
 - [Buffer Classes](#buffer-classes)
 - [Storage Types](#storage-types)
-- [I/O Functions](#io-functions)
+- [Error Handling](#error-handling)
+- [Examples](#examples)
 
 ---
 
@@ -89,11 +104,13 @@ The `Tensor` class is a template class that provides multi-dimensional tensor op
 ### Type Aliases
 
 ```cpp
-using TensorFloat = Tensor<float>;   // TensorFloat
-using TensorDouble = Tensor<double>; // TensorDouble
-using TensorInt = Tensor<int32_t>;   // TensorInt
-using TensorLong = Tensor<int64_t>;  // TensorLong
+using TensorFloat = Tensor<float>;   // 32-bit floating point
+using TensorDouble = Tensor<double>; // 64-bit floating point
+using TensorInt = Tensor<int32_t>;   // 32-bit signed integer
+using TensorLong = Tensor<int64_t>;  // 64-bit signed integer
 ```
+
+---
 
 ### Constructors
 
@@ -102,6 +119,11 @@ using TensorLong = Tensor<int64_t>;  // TensorLong
 Tensor();
 ```
 Creates an empty tensor.
+
+**Example:**
+```cpp
+TensorDouble empty;
+```
 
 #### Shape Constructor
 ```cpp
@@ -155,6 +177,7 @@ Tensor(Tensor&& other) noexcept;
 Tensor& operator=(const Tensor& other);
 Tensor& operator=(Tensor&& other) noexcept;
 ```
+Standard copy and move semantics.
 
 ---
 
@@ -168,6 +191,12 @@ Returns the shape (dimensions) of the tensor.
 
 **Returns:** Constant reference to shape vector
 
+**Example:**
+```cpp
+TensorDouble tensor({2, 3});
+auto shape = tensor.shape();  // Returns {2, 3}
+```
+
 #### `ndim()`
 ```cpp
 size_t ndim() const;
@@ -176,6 +205,12 @@ Returns the number of dimensions.
 
 **Returns:** Number of dimensions
 
+**Example:**
+```cpp
+TensorDouble tensor({2, 3, 4});
+size_t dims = tensor.ndim();  // Returns 3
+```
+
 #### `size()`
 ```cpp
 size_t size() const;
@@ -183,6 +218,12 @@ size_t size() const;
 Returns the total number of elements.
 
 **Returns:** Total element count
+
+**Example:**
+```cpp
+TensorDouble tensor({2, 3});
+size_t total = tensor.size();  // Returns 6
+```
 
 #### `empty()`
 ```cpp
@@ -217,6 +258,12 @@ Flattens the tensor to 1D.
 
 **Returns:** 1D tensor with all elements
 
+**Example:**
+```cpp
+TensorDouble tensor({2, 3});
+auto flattened = tensor.flatten();  // Returns 1D tensor of size 6
+```
+
 ---
 
 ### Element Access
@@ -233,6 +280,13 @@ Access element by linear index (for 1D tensors or flattened access).
 
 **Returns:** Reference to element
 
+**Example:**
+```cpp
+TensorDouble tensor({5}, {1.0, 2.0, 3.0, 4.0, 5.0});
+double value = tensor[2];  // Returns 3.0
+tensor[0] = 10.0;          // Modify element
+```
+
 #### `at()` - Linear Index
 ```cpp
 T& at(size_t index);
@@ -246,6 +300,12 @@ Bounds-checked element access by linear index.
 **Returns:** Reference to element
 
 **Throws:** `std::runtime_error` if index out of bounds
+
+**Example:**
+```cpp
+TensorDouble tensor({5}, {1.0, 2.0, 3.0, 4.0, 5.0});
+double value = tensor.at(2);  // Returns 3.0
+```
 
 #### `at()` - Multi-dimensional Index
 ```cpp
@@ -279,6 +339,12 @@ Returns a const reference to the underlying data vector.
 
 **Returns:** Const reference to data vector
 
+**Example:**
+```cpp
+TensorDouble tensor({3}, {1.0, 2.0, 3.0});
+const auto& data = tensor.data();  // Access underlying vector
+```
+
 #### `raw_data()`
 ```cpp
 T* raw_data();
@@ -287,6 +353,12 @@ const T* raw_data() const;
 Returns a pointer to the raw data array.
 
 **Returns:** Pointer to data array
+
+**Example:**
+```cpp
+TensorDouble tensor({3}, {1.0, 2.0, 3.0});
+const double* ptr = tensor.raw_data();  // Get raw pointer
+```
 
 ---
 
@@ -313,10 +385,12 @@ Element-wise arithmetic operations.
 
 **Example:**
 ```cpp
-TensorDouble a({2, 2}, {1.0, 2.0, 3.0, 4.0});
-TensorDouble b({2, 2}, {5.0, 6.0, 7.0, 8.0});
-auto sum = a + b;        // Element-wise addition
-auto scaled = a * 2.0;   // Scalar multiplication
+TensorDouble a({3}, {1.0, 2.0, 3.0});
+TensorDouble b({3}, {4.0, 5.0, 6.0});
+auto sum = a + b;        // Element-wise addition: {5.0, 7.0, 9.0}
+auto scaled = a * 2.0;   // Scalar multiplication: {2.0, 4.0, 6.0}
+auto diff = b - a;       // Element-wise subtraction: {3.0, 3.0, 3.0}
+auto div = b / a;        // Element-wise division: {4.0, 2.5, 2.0}
 ```
 
 #### In-place Operations
@@ -334,6 +408,13 @@ In-place arithmetic operations (modify the tensor in place).
 
 **Returns:** Reference to `*this`
 
+**Example:**
+```cpp
+TensorDouble a({3}, {1.0, 2.0, 3.0});
+a += 5.0;   // a becomes {6.0, 7.0, 8.0}
+a *= 2.0;   // a becomes {12.0, 14.0, 16.0}
+```
+
 ---
 
 ### Comparison Operations
@@ -346,20 +427,37 @@ Element-wise comparison.
 
 **Returns:** `true` if all elements match (for `==`)
 
+**Example:**
+```cpp
+TensorDouble a({3}, {1.0, 2.0, 3.0});
+TensorDouble b({3}, {1.0, 2.0, 3.0});
+bool equal = (a == b);  // Returns true
+```
+
 ---
 
 ### Mathematical Operations
 
 ```cpp
 Tensor abs() const;           // Absolute value
-Tensor sqrt() const;           // Square root
-Tensor exp() const;            // Exponential
-Tensor log() const;            // Natural logarithm
-Tensor pow(T exponent) const;  // Power function
+Tensor sqrt() const;          // Square root
+Tensor exp() const;           // Exponential
+Tensor log() const;           // Natural logarithm
+Tensor pow(T exponent) const; // Power function
 ```
 Element-wise mathematical functions.
 
 **Returns:** New tensor with results
+
+**Example:**
+```cpp
+TensorDouble tensor({3}, {-1.0, 4.0, 9.0});
+auto abs_result = tensor.abs();    // {1.0, 4.0, 9.0}
+auto sqrt_result = tensor.sqrt();  // {NaN, 2.0, 3.0} (sqrt of negative is NaN)
+auto exp_result = tensor.exp();    // Exponential of each element
+auto log_result = tensor.log();    // Natural log of each element
+auto pow_result = tensor.pow(2.0); // Each element raised to power 2.0
+```
 
 ---
 
@@ -378,6 +476,17 @@ T var() const;   // Variance
 Computes statistics over all elements.
 
 **Returns:** Scalar result
+
+**Example:**
+```cpp
+TensorDouble tensor({5}, {1.0, 2.0, 3.0, 4.0, 5.0});
+double total = tensor.sum();    // 15.0
+double avg = tensor.mean();     // 3.0
+double max_val = tensor.max();  // 5.0
+double min_val = tensor.min();  // 1.0
+double std_dev = tensor.std();  // ~1.414
+double variance = tensor.var(); // 2.0
+```
 
 #### Aggregate Operations (With Axis)
 
@@ -398,9 +507,13 @@ Computes statistics along a specific axis (for 2D+ tensors).
 
 **Example:**
 ```cpp
-TensorDouble tensor({3, 4});
-auto col_means = tensor.mean(0);  // Mean of each column
-auto row_sums = tensor.sum(1);    // Sum of each row
+TensorDouble tensor({2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+// [[1, 2, 3],
+//  [4, 5, 6]]
+
+auto col_means = tensor.mean(0);  // Mean of each column: {2.5, 3.5, 4.5}
+auto row_sums = tensor.sum(1);    // Sum of each row: {6.0, 15.0}
+auto col_max = tensor.max(0);     // Max of each column: {4.0, 5.0, 6.0}
 ```
 
 ---
@@ -414,6 +527,13 @@ Tensor returns() const;
 Calculates percentage returns: `(x[i] - x[i-1]) / x[i-1]`.
 
 **Returns:** Tensor of returns (size = original size - 1)
+
+**Example:**
+```cpp
+TensorDouble prices({6}, {100.0, 102.0, 101.0, 105.0, 108.0, 110.0});
+auto returns = prices.returns();
+// Returns: {0.02, -0.0098, 0.0396, 0.0286, 0.0185}
+```
 
 #### Rolling Window Operations
 
@@ -433,8 +553,12 @@ Compute rolling window statistics.
 
 **Example:**
 ```cpp
-TensorDouble prices({100});
-auto rolling_avg = prices.rolling_mean(20);  // 20-day moving average
+TensorDouble prices({6}, {100.0, 102.0, 101.0, 105.0, 108.0, 110.0});
+auto rolling_avg = prices.rolling_mean(3);
+// 3-element rolling average: {101.0, 102.67, 104.67, 107.67}
+
+auto rolling_vol = prices.rolling_std(3);
+// 3-element rolling standard deviation
 ```
 
 #### `correlation()` and `covariance()`
@@ -449,6 +573,14 @@ Compute correlation and covariance with another tensor.
 
 **Returns:** Tensor containing correlation/covariance values
 
+**Example:**
+```cpp
+TensorDouble asset1({5}, {100.0, 102.0, 101.0, 105.0, 108.0});
+TensorDouble asset2({5}, {50.0, 51.0, 50.5, 52.5, 54.0});
+auto corr = asset1.correlation(asset2);  // Correlation coefficient
+auto cov = asset1.covariance(asset2);    // Covariance
+```
+
 ---
 
 ### Slicing Operations
@@ -461,10 +593,20 @@ Tensor slice_column(size_t col) const;               // Extract column (2D)
 Extract sub-tensors by slicing.
 
 **Parameters:**
-- `start`, `end`: Range for 1D slicing
+- `start`, `end`: Range for 1D slicing (end is exclusive)
 - `row`, `col`: Row/column index
 
 **Returns:** New tensor with sliced data
+
+**Example:**
+```cpp
+TensorDouble tensor({6}, {10.0, 20.0, 30.0, 40.0, 50.0, 60.0});
+auto sliced = tensor.slice(1, 4);  // {20.0, 30.0, 40.0}
+
+TensorDouble matrix({3, 4}, {...});
+auto row = matrix.slice_row(1);     // Extract row 1
+auto col = matrix.slice_column(2);  // Extract column 2
+```
 
 ---
 
@@ -477,6 +619,17 @@ Tensor transpose() const;
 Transposes a 2D matrix.
 
 **Returns:** Transposed tensor
+
+**Example:**
+```cpp
+TensorDouble matrix({2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+// [[1, 2, 3],
+//  [4, 5, 6]]
+auto transposed = matrix.transpose();
+// [[1, 4],
+//  [2, 5],
+//  [3, 6]]
+```
 
 #### `matmul()`
 ```cpp
@@ -491,13 +644,39 @@ Matrix multiplication (2D tensors only).
 
 **Note:** Left tensor columns must match right tensor rows.
 
+**Example:**
+```cpp
+TensorDouble a({2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+TensorDouble b({3, 2}, {7.0, 8.0, 9.0, 10.0, 11.0, 12.0});
+auto result = a.matmul(b);  // 2x2 matrix product
+```
+
 ---
 
-### Storage Operations (v0.2)
+### Copy Operations
+
+#### `copy()`
+```cpp
+Tensor copy() const;
+```
+Creates a deep copy of the tensor.
+
+**Returns:** New tensor with copied data
+
+**Example:**
+```cpp
+TensorDouble original({3}, {1.0, 2.0, 3.0});
+auto copied = original.copy();
+original[0] = 99.0;  // Modifying original doesn't affect copy
+```
+
+---
+
+### Storage Operations
 
 #### `save()`
 ```cpp
-void save(const std::string& path, Layout layout = Layout::RowMajor) const;
+void save(std::string_view path, Layout layout = Layout::RowMajor) const;
 ```
 Saves tensor to file with versioned binary format.
 
@@ -507,9 +686,16 @@ Saves tensor to file with versioned binary format.
 
 **Throws:** `std::runtime_error` on file I/O errors
 
+**Example:**
+```cpp
+TensorDouble tensor({100, 1000}, {...});
+tensor.save("data.dt", Layout::RowMajor);
+tensor.save("data_col.dt", Layout::ColumnMajor);
+```
+
 #### `load()`
 ```cpp
-static Tensor load(const std::string& path, bool mmap = true);
+static Tensor load(std::string_view path, bool mmap = true);
 ```
 Loads tensor from file.
 
@@ -521,9 +707,15 @@ Loads tensor from file.
 
 **Throws:** `std::runtime_error` on file I/O or format errors
 
+**Example:**
+```cpp
+auto loaded = TensorDouble::load("data.dt", false);  // Load without mmap
+auto mapped = TensorDouble::load("large_data.dt", true);  // Memory-mapped
+```
+
 #### `create_shared()`
 ```cpp
-static Tensor create_shared(const std::string& name,
+static Tensor create_shared(std::string_view name,
                             const std::vector<size_t>& shape,
                             Layout layout = Layout::RowMajor);
 ```
@@ -538,9 +730,14 @@ Creates a shared-memory tensor (POSIX shared memory).
 
 **Throws:** `std::runtime_error` if shared memory creation fails
 
+**Example:**
+```cpp
+auto shared = TensorDouble::create_shared("risk_data", {252, 500}, Layout::RowMajor);
+```
+
 #### `attach_shared()`
 ```cpp
-static Tensor attach_shared(const std::string& name);
+static Tensor attach_shared(std::string_view name);
 ```
 Attaches to an existing shared-memory tensor.
 
@@ -551,20 +748,35 @@ Attaches to an existing shared-memory tensor.
 
 **Throws:** `std::runtime_error` if shared memory not found
 
+**Example:**
+```cpp
+auto attached = TensorDouble::attach_shared("risk_data");
+```
+
 #### `detach()`
 ```cpp
 void detach();
 ```
 Unmaps shared-memory tensor (but shared memory persists).
 
+**Example:**
+```cpp
+shared.detach();  // Unmap, but memory remains accessible to other processes
+```
+
 #### `destroy_shared()`
 ```cpp
-static void destroy_shared(const std::string& name);
+static void destroy_shared(std::string_view name);
 ```
 Destroys a shared-memory segment.
 
 **Parameters:**
 - `name`: Shared memory segment name
+
+**Example:**
+```cpp
+TensorDouble::destroy_shared("risk_data");
+```
 
 #### `flush()`
 ```cpp
@@ -572,17 +784,10 @@ void flush();
 ```
 Forces write-back for file-backed or memory-mapped tensors.
 
----
-
-### Copy Operations
-
-#### `copy()`
+**Example:**
 ```cpp
-Tensor copy() const;
+mapped_tensor.flush();  // Ensure writes are visible
 ```
-Creates a deep copy of the tensor.
-
-**Returns:** New tensor with copied data
 
 ---
 
@@ -711,34 +916,6 @@ uint32_t calculate_checksum(const void* data, size_t size);
 
 ---
 
-## I/O Functions
-
-I/O functions are in the `dragon_tensor::io` namespace.
-
-### `save_tensor()`
-```cpp
-template <typename T>
-void save_tensor(const Tensor<T>& tensor, const std::string& path,
-                 Layout layout = Layout::RowMajor);
-```
-
-### `load_tensor()`
-```cpp
-template <typename T>
-Tensor<T> load_tensor(const std::string& path, bool mmap = true);
-```
-
-### Type Helpers
-```cpp
-template <typename T>
-constexpr DType get_dtype();
-
-template <typename T>
-constexpr size_t get_type_size();
-```
-
----
-
 ## Error Handling
 
 Most operations throw `std::runtime_error` on failure, including:
@@ -748,11 +925,19 @@ Most operations throw `std::runtime_error` on failure, including:
 - Shape mismatches for operations
 - Memory allocation failures
 
-Always wrap operations in try-catch blocks for production code.
+Always wrap operations in try-catch blocks for production code:
+
+```cpp
+try {
+    TensorDouble tensor = TensorDouble::load("data.dt");
+    // Use tensor...
+} catch (const std::runtime_error& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+}
+```
 
 ---
 
 ## Examples
 
-See `examples/basic_example.cpp` for C++ usage examples.
-
+See `examples/basic_example.cpp` for comprehensive C++ usage examples covering all API features.

@@ -183,10 +183,12 @@ format_cpp() {
     
     local formatted_count=0
     local error_count=0
+    local total_count=0
     
     # Use find to get actual files (handles missing directories gracefully)
     while IFS= read -r -d '' file; do
         if [ -f "$file" ]; then
+            ((total_count++))
             if [ "$CHECK_ONLY" = true ]; then
                 if [ -n "$STYLE_FLAG" ]; then
                     cmd="clang-format $STYLE_FLAG"
@@ -196,17 +198,24 @@ format_cpp() {
                 if ! $cmd "$file" | diff -u "$file" - > /dev/null 2>&1; then
                     print_warning "Needs formatting: $file"
                     ((error_count++))
-                else
-                    print_info "✓ $file"
                 fi
             else
-                print_info "Formatting: $file"
+                # Create temporary file to check if formatting changed anything
+                local tmp_file=$(mktemp)
                 if [ -n "$STYLE_FLAG" ]; then
-                    clang-format -i $STYLE_FLAG "$file"
+                    clang-format $STYLE_FLAG "$file" > "$tmp_file"
                 else
-                    clang-format -i "$file"
+                    clang-format "$file" > "$tmp_file"
                 fi
-                ((formatted_count++))
+
+                # Check if file was actually changed
+                if ! cmp -s "$file" "$tmp_file"; then
+                    mv "$tmp_file" "$file"
+                    print_info "Formatted: $file"
+                    ((formatted_count++))
+                else
+                    rm -f "$tmp_file"
+                fi
             fi
         fi
     done < <(find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
@@ -215,14 +224,18 @@ format_cpp() {
     
     if [ "$CHECK_ONLY" = true ]; then
         if [ $error_count -eq 0 ]; then
-            print_info "All C++ files are properly formatted!"
+            print_info "All C++ files are properly formatted! (checked $total_count files)"
             return 0
         else
-            print_error "$error_count C++ file(s) need formatting"
+            print_error "$error_count of $total_count C++ file(s) need formatting"
             return 1
         fi
     else
-        print_info "Formatted $formatted_count C++ file(s)"
+        if [ $formatted_count -eq 0 ]; then
+            print_info "All C++ files are already formatted! (checked $total_count files)"
+        else
+            print_info "Formatted $formatted_count of $total_count C++ file(s)"
+        fi
     fi
     
     return 0
@@ -244,20 +257,23 @@ format_python() {
     
     local formatted_count=0
     local error_count=0
+    local total_count=0
     
     while IFS= read -r -d '' file; do
         if [ -f "$file" ]; then
+            ((total_count++))
             if [ "$CHECK_ONLY" = true ]; then
                 if ! black --check --quiet "$file" 2>/dev/null; then
                     print_warning "Needs formatting: $file"
                     ((error_count++))
-                else
-                    print_info "✓ $file"
                 fi
             else
-                print_info "Formatting: $file"
-                black --quiet "$file"
-                ((formatted_count++))
+                # Check if file needs formatting before actually formatting
+                if ! black --check --quiet "$file" 2>/dev/null; then
+                    black --quiet "$file"
+                    print_info "Formatted: $file"
+                    ((formatted_count++))
+                fi
             fi
         fi
     done < <(find . -type f -name "*.py" \
@@ -267,14 +283,18 @@ format_python() {
     
     if [ "$CHECK_ONLY" = true ]; then
         if [ $error_count -eq 0 ]; then
-            print_info "All Python files are properly formatted!"
+            print_info "All Python files are properly formatted! (checked $total_count files)"
             return 0
         else
-            print_error "$error_count Python file(s) need formatting"
+            print_error "$error_count of $total_count Python file(s) need formatting"
             return 1
         fi
     else
-        print_info "Formatted $formatted_count Python file(s)"
+        if [ $formatted_count -eq 0 ]; then
+            print_info "All Python files are already formatted! (checked $total_count files)"
+        else
+            print_info "Formatted $formatted_count of $total_count Python file(s)"
+        fi
     fi
     
     return 0

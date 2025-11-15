@@ -8,8 +8,25 @@ This document provides comprehensive API reference for the Dragon Tensor Python 
 - [Tensor Classes](#tensor-classes)
 - [Factory Functions](#factory-functions)
 - [Tensor Methods](#tensor-methods)
+  - [Shape and Size](#shape-and-size)
+  - [Transformation](#transformation)
+  - [Element Access](#element-access)
+  - [Data Access](#data-access)
+  - [Arithmetic Operations](#arithmetic-operations)
+  - [Comparison Operations](#comparison-operations)
+  - [Mathematical Functions](#mathematical-functions)
+  - [Statistical Operations](#statistical-operations)
+  - [Financial Operations](#financial-operations)
+  - [Slicing Operations](#slicing-operations)
+  - [Matrix Operations](#matrix-operations)
+  - [Copy Operations](#copy-operations)
 - [Storage Operations](#storage-operations)
+  - [File I/O](#file-io)
+  - [Shared Memory](#shared-memory)
+- [Type Conversion Summary](#type-conversion-summary)
+- [Error Handling](#error-handling)
 - [Examples](#examples)
+- [Performance Notes](#performance-notes)
 
 ---
 
@@ -42,54 +59,70 @@ All classes have the same interface; only the element type differs.
 
 ### NumPy Conversion
 
-#### `from_numpy_float()`
+#### `from_numpy()`
 ```python
-dt.from_numpy_float(arr: np.ndarray[np.float32]) -> TensorFloat
+dt.from_numpy(arr: np.ndarray) -> TensorFloat | TensorDouble | TensorInt | TensorLong
 ```
-Creates a `TensorFloat` from a NumPy float32 array.
+Creates a tensor from a NumPy array. Automatically detects dtype and returns the appropriate tensor type.
 
 **Parameters:**
-- `arr`: NumPy array with `dtype=np.float32`
+- `arr`: NumPy array (any dtype)
 
-**Returns:** `TensorFloat` instance
+**Returns:** Tensor instance (type depends on array dtype)
 
-**Note:** This function copies data. For zero-copy, see `to_numpy()` method.
+**Supported dtypes:**
+- `float32` → `TensorFloat`
+- `float64` → `TensorDouble`
+- `int32` → `TensorInt`
+- `int64` → `TensorLong`
+- Other types → converted to `float64` and returns `TensorDouble`
 
-#### `from_numpy_double()`
+**Example:**
 ```python
-dt.from_numpy_double(arr: np.ndarray[np.float64]) -> TensorDouble
+import numpy as np
+
+# Automatic dtype detection
+arr = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+tensor = dt.from_numpy(arr)  # Returns TensorDouble
+
+arr_int = np.array([1, 2, 3], dtype=np.int32)
+tensor_int = dt.from_numpy(arr_int)  # Returns TensorInt
+
+# From Python list (converted to numpy first)
+tensor = dt.from_numpy([1.0, 2.0, 3.0])  # Returns TensorDouble
 ```
-Creates a `TensorDouble` from a NumPy float64 array.
+
+**Note:** This function copies data. For zero-copy conversion back to NumPy, use `to_numpy()` method.
+
+#### `to_numpy()`
+```python
+dt.to_numpy(tensor: Tensor) -> np.ndarray
+```
+Converts tensor to NumPy array (zero-copy when possible).
 
 **Parameters:**
-- `arr`: NumPy array with `dtype=np.float64`
+- `tensor`: Dragon Tensor
 
-**Returns:** `TensorDouble` instance
+**Returns:** NumPy array sharing memory with tensor (zero-copy)
 
-#### `from_numpy_int()`
+**Example:**
 ```python
-dt.from_numpy_int(arr: np.ndarray[np.int32]) -> TensorInt
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+np_array = dt.to_numpy(tensor)  # Zero-copy conversion
 ```
-Creates a `TensorInt` from a NumPy int32 array.
-
-#### `from_numpy_long()`
-```python
-dt.from_numpy_long(arr: np.ndarray[np.int64]) -> TensorLong
-```
-Creates a `TensorLong` from a NumPy int64 array.
 
 ### Pandas Conversion
 
-#### `from_pandas_series()`
+#### `from_pandas()`
 ```python
-dt.from_pandas_series(series: pd.Series) -> TensorFloat | TensorDouble | TensorInt | TensorLong
+dt.from_pandas(obj: pd.Series | pd.DataFrame) -> TensorFloat | TensorDouble | TensorInt | TensorLong
 ```
-Creates a tensor from a Pandas Series.
+Creates a tensor from a Pandas Series or DataFrame.
 
 **Parameters:**
-- `series`: Pandas Series
+- `obj`: Pandas Series or DataFrame
 
-**Returns:** Tensor instance (type depends on Series dtype)
+**Returns:** Tensor instance (type depends on Series/DataFrame dtype)
 
 **Supported dtypes:**
 - `float32` → `TensorFloat`
@@ -100,20 +133,34 @@ Creates a tensor from a Pandas Series.
 **Example:**
 ```python
 import pandas as pd
+
+# From Series
 series = pd.Series([1.0, 2.0, 3.0, 4.0], dtype=np.float64)
-tensor = dt.from_pandas_series(series)
+tensor = dt.from_pandas(series)
+
+# From DataFrame
+df = pd.DataFrame({'price': [100, 102, 101, 105]})
+tensor = dt.from_pandas(df['price'])
 ```
 
-#### `from_pandas_dataframe()`
+#### `to_pandas()`
 ```python
-dt.from_pandas_dataframe(df: pd.DataFrame) -> TensorFloat | TensorDouble | TensorInt | TensorLong
+dt.to_pandas(tensor: Tensor, index=None, columns=None) -> pd.Series | pd.DataFrame
 ```
-Creates a tensor from a Pandas DataFrame (uses `.values`).
+Converts tensor to Pandas Series or DataFrame.
 
 **Parameters:**
-- `df`: Pandas DataFrame
+- `tensor`: Dragon Tensor
+- `index`: Optional index for Series/DataFrame
+- `columns`: Optional column names for DataFrame
 
-**Returns:** Tensor instance (type depends on DataFrame dtype)
+**Returns:** Pandas Series (1D) or DataFrame (2D)
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+series = dt.to_pandas(tensor, index=pd.date_range('2024-01-01', periods=3))
+```
 
 ### PyTorch Conversion
 
@@ -133,8 +180,46 @@ Creates a tensor from a PyTorch tensor (zero-copy when PyTorch tensor is CPU and
 **Example:**
 ```python
 import torch
+
 torch_tensor = torch.randn(100, dtype=torch.float64)
 dt_tensor = dt.from_torch(torch_tensor)
+
+# GPU tensors must be moved to CPU first
+gpu_tensor = torch.randn(100, device='cuda')
+cpu_tensor = gpu_tensor.cpu()
+dt_tensor = dt.from_torch(cpu_tensor)
+```
+
+#### `to_torch()`
+```python
+dt.to_torch(tensor: Tensor, device=None, dtype=None) -> torch.Tensor
+```
+Converts tensor to PyTorch tensor (zero-copy via NumPy).
+
+**Parameters:**
+- `tensor`: Dragon Tensor
+- `device`: Optional device (default: CPU, zero-copy)
+- `dtype`: Optional dtype (default: matches tensor dtype, zero-copy)
+
+**Returns:** PyTorch tensor (zero-copy when device=None and dtype matches)
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+torch_tensor = dt.to_torch(tensor)  # Zero-copy conversion
+
+# Convert to GPU (requires copying)
+torch_gpu = dt.to_torch(tensor, device='cuda')
+```
+
+### Direct Factory Functions
+
+For advanced use cases, you can also use type-specific factory functions:
+
+```python
+dt.from_pandas_series(series: pd.Series) -> Tensor
+dt.from_pandas_dataframe(df: pd.DataFrame) -> Tensor
+dt.from_torch(torch_tensor: torch.Tensor) -> Tensor
 ```
 
 ---
@@ -152,8 +237,8 @@ Returns the shape (dimensions) of the tensor.
 
 **Example:**
 ```python
-tensor = dt.TensorDouble([5, 10])  # 5x10 tensor
-print(tensor.shape())  # [5, 10]
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+print(tensor.shape())  # [2, 3]
 ```
 
 #### `ndim() -> int`
@@ -161,15 +246,29 @@ Returns the number of dimensions.
 
 **Returns:** Number of dimensions
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+print(tensor.ndim())  # 2
+```
+
 #### `size() -> int`
 Returns the total number of elements.
 
 **Returns:** Total element count
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+print(tensor.size())  # 6
+```
+
 #### `empty() -> bool`
 Checks if the tensor is empty.
 
 **Returns:** `True` if tensor has no elements
+
+---
 
 ### Transformation
 
@@ -183,7 +282,7 @@ Reshapes the tensor to a new shape.
 
 **Example:**
 ```python
-tensor = dt.TensorDouble([2, 3])
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
 reshaped = tensor.reshape([6])  # Flatten to 1D
 ```
 
@@ -191,6 +290,14 @@ reshaped = tensor.reshape([6])  # Flatten to 1D
 Flattens the tensor to 1D.
 
 **Returns:** 1D tensor
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+flattened = tensor.flatten()  # 1D tensor of size 6
+```
+
+---
 
 ### Element Access
 
@@ -204,8 +311,9 @@ Access element by linear index (supports Python indexing).
 
 **Example:**
 ```python
-tensor = dt.from_numpy_double(np.array([1.0, 2.0, 3.0]))
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
 print(tensor[0])  # 1.0
+print(tensor[2])  # 3.0
 ```
 
 #### `__setitem__(index: int, value: float) -> None`
@@ -214,6 +322,13 @@ Set element by linear index.
 **Parameters:**
 - `index`: Linear index
 - `value`: New value
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+tensor[0] = 10.0
+print(tensor[0])  # 10.0
+```
 
 #### `at(index: int) -> float`
 Bounds-checked element access.
@@ -225,6 +340,12 @@ Bounds-checked element access.
 
 **Raises:** `RuntimeError` if index out of bounds
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+value = tensor.at(1)  # 2.0
+```
+
 #### `at(indices: List[int]) -> float`
 Multi-dimensional element access.
 
@@ -235,9 +356,11 @@ Multi-dimensional element access.
 
 **Example:**
 ```python
-tensor = dt.TensorDouble([3, 4, 5])
-value = tensor.at([1, 2, 3])  # Access element at [1,2,3]
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+value = tensor.at([1, 2])  # 6 (element at row 1, column 2)
 ```
+
+---
 
 ### Data Access
 
@@ -246,6 +369,12 @@ Returns the underlying data as a Python list.
 
 **Returns:** List of elements
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+data_list = tensor.data()  # [1.0, 2.0, 3.0]
+```
+
 #### `to_numpy() -> np.ndarray`
 Converts tensor to NumPy array (zero-copy when possible).
 
@@ -253,20 +382,11 @@ Converts tensor to NumPy array (zero-copy when possible).
 
 **Example:**
 ```python
-tensor = dt.from_numpy_double(np.array([1.0, 2.0, 3.0]))
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
 np_array = tensor.to_numpy()  # Zero-copy conversion
 ```
 
-#### `to_torch() -> torch.Tensor`
-Converts tensor to PyTorch tensor (zero-copy via NumPy).
-
-**Returns:** PyTorch tensor
-
-**Example:**
-```python
-tensor = dt.from_numpy_double(np.array([1.0, 2.0, 3.0]))
-torch_tensor = tensor.to_torch()  # Zero-copy conversion
-```
+---
 
 ### Arithmetic Operations
 
@@ -282,7 +402,6 @@ tensor + scalar: Tensor
 ```python
 tensor - other: Tensor
 tensor - scalar: Tensor
-scalar - tensor: Tensor  # Reverse subtraction
 ```
 
 #### Multiplication
@@ -296,7 +415,17 @@ scalar * tensor: Tensor  # Reverse multiplication
 ```python
 tensor / other: Tensor
 tensor / scalar: Tensor
-scalar / tensor: Tensor  # Reverse division
+```
+
+**Example:**
+```python
+a = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+b = dt.from_numpy(np.array([4.0, 5.0, 6.0]))
+
+sum_result = a + b        # [5.0, 7.0, 9.0]
+scaled = a * 2.0          # [2.0, 4.0, 6.0]
+product = a * b           # [4.0, 10.0, 18.0]
+quotient = b / a          # [4.0, 2.5, 2.0]
 ```
 
 #### In-place Operations
@@ -313,6 +442,35 @@ tensor /= scalar: Tensor
 
 **Note:** In-place operations return the modified tensor.
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+tensor += 5.0   # tensor becomes [6.0, 7.0, 8.0]
+tensor *= 2.0   # tensor becomes [12.0, 14.0, 16.0]
+```
+
+---
+
+### Comparison Operations
+
+```python
+tensor == other: bool
+tensor != other: bool
+```
+
+Element-wise comparison.
+
+**Returns:** `True` if all elements match (for `==`)
+
+**Example:**
+```python
+a = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+b = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+print(a == b)  # True
+```
+
+---
+
 ### Mathematical Functions
 
 ```python
@@ -325,6 +483,15 @@ tensor.pow(exponent: float) -> Tensor  # Power function
 
 All operations are element-wise.
 
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([4.0, 9.0, 16.0]))
+sqrt_result = tensor.sqrt()    # [2.0, 3.0, 4.0]
+pow_result = tensor.pow(2.0)   # [16.0, 81.0, 256.0]
+```
+
+---
+
 ### Statistical Operations
 
 #### Aggregate Operations (No Axis)
@@ -336,6 +503,17 @@ tensor.max() -> float       # Maximum element
 tensor.min() -> float       # Minimum element
 tensor.std() -> float       # Standard deviation
 tensor.var() -> float       # Variance
+```
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0, 4.0, 5.0]))
+print(tensor.sum())    # 15.0
+print(tensor.mean())   # 3.0
+print(tensor.max())    # 5.0
+print(tensor.min())    # 1.0
+print(tensor.std())    # ~1.414
+print(tensor.var())    # 2.0
 ```
 
 #### Aggregate Operations (With Axis)
@@ -352,12 +530,20 @@ tensor.var(axis: int) -> Tensor
 **Parameters:**
 - `axis`: Axis to reduce over (0-based)
 
+**Returns:** Tensor with reduced dimension
+
 **Example:**
 ```python
-tensor = dt.TensorDouble([3, 4])
-col_means = tensor.mean(0)  # Mean of each column
-row_sums = tensor.sum(1)     # Sum of each row
+tensor = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+# [[1, 2, 3],
+#  [4, 5, 6]]
+
+col_means = tensor.mean(0)  # Mean of each column: [2.5, 3.5, 4.5]
+row_sums = tensor.sum(1)    # Sum of each row: [6.0, 15.0]
+col_max = tensor.max(0)     # Max of each column: [4, 5, 6]
 ```
+
+---
 
 ### Financial Operations
 
@@ -368,7 +554,7 @@ Calculates percentage returns: `(x[i] - x[i-1]) / x[i-1]`.
 
 **Example:**
 ```python
-prices = dt.from_numpy_double(np.array([100, 102, 101, 105, 108]))
+prices = dt.from_numpy(np.array([100.0, 102.0, 101.0, 105.0, 108.0]))
 returns = prices.returns()
 # Returns: [0.02, -0.0098, 0.0396, 0.0286]
 ```
@@ -384,16 +570,18 @@ tensor.rolling_min(window: int) -> Tensor
 ```
 
 **Parameters:**
-- `window`: Window size
+- `window`: Window size (positional argument, not keyword)
 
 **Returns:** Tensor with rolling statistics
 
 **Example:**
 ```python
-prices = dt.from_numpy_double(np.array([100, 102, 101, 105, 108, 110]))
-rolling_avg = prices.rolling_mean(3)
-# 3-element rolling average
+prices = dt.from_numpy(np.array([100.0, 102.0, 101.0, 105.0, 108.0, 110.0]))
+rolling_avg = prices.rolling_mean(3)  # 3-element rolling average
+rolling_vol = prices.rolling_std(3)   # 3-element rolling standard deviation
 ```
+
+**Note:** Window size must be passed as a positional argument, not a keyword argument.
 
 #### Correlation and Covariance
 
@@ -409,11 +597,13 @@ tensor.covariance(other: Tensor) -> Tensor
 
 **Example:**
 ```python
-asset1 = dt.from_numpy_double(np.array([100, 102, 101, 105, 108]))
-asset2 = dt.from_numpy_double(np.array([50, 51, 50.5, 52.5, 54]))
+asset1 = dt.from_numpy(np.array([100.0, 102.0, 101.0, 105.0, 108.0]))
+asset2 = dt.from_numpy(np.array([50.0, 51.0, 50.5, 52.5, 54.0]))
 corr = asset1.correlation(asset2)
 cov = asset1.covariance(asset2)
 ```
+
+---
 
 ### Slicing Operations
 
@@ -424,10 +614,22 @@ tensor.slice_column(col: int) -> Tensor   # Extract column (2D only)
 ```
 
 **Parameters:**
-- `start`, `end`: Range for 1D slicing
+- `start`, `end`: Range for 1D slicing (end is exclusive)
 - `row`, `col`: Row/column index
 
 **Returns:** New tensor with sliced data
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([10.0, 20.0, 30.0, 40.0, 50.0, 60.0]))
+sliced = tensor.slice(1, 4)  # [20.0, 30.0, 40.0]
+
+matrix = dt.from_numpy(np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]))
+row = matrix.slice_row(1)     # Extract row 1: [5, 6, 7, 8]
+col = matrix.slice_column(2)  # Extract column 2: [3, 7, 11]
+```
+
+---
 
 ### Matrix Operations (2D Only)
 
@@ -438,8 +640,11 @@ Transposes a 2D matrix.
 
 **Example:**
 ```python
-matrix = dt.TensorDouble([2, 3])
-transposed = matrix.transpose()  # Now 3x2
+matrix = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+transposed = matrix.transpose()
+# [[1, 4],
+#  [2, 5],
+#  [3, 6]]
 ```
 
 #### `matmul(other: Tensor) -> Tensor`
@@ -452,12 +657,28 @@ Matrix multiplication (2D tensors only).
 
 **Note:** Left tensor columns must match right tensor rows.
 
+**Example:**
+```python
+a = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
+b = dt.from_numpy(np.array([[7, 8], [9, 10], [11, 12]]))
+result = a.matmul(b)  # 2x2 matrix product
+```
+
+---
+
 ### Copy Operations
 
 #### `copy() -> Tensor`
 Creates a deep copy of the tensor.
 
 **Returns:** New tensor with copied data
+
+**Example:**
+```python
+original = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+copied = original.copy()
+original[0] = 99.0  # Modifying original doesn't affect copy
+```
 
 ---
 
@@ -478,12 +699,12 @@ Saves tensor to file with versioned binary format.
 
 **Example:**
 ```python
-tensor = dt.from_numpy_double(np.random.randn(100, 1000))
-tensor.save("data.dt", layout="column")
+tensor = dt.from_numpy(np.random.randn(100, 1000))
+dt.save(tensor, "data.dt", layout="column")
 ```
 
 #### `load(path: str, mmap: bool = True) -> Tensor`
-Loads tensor from file (static method).
+Loads tensor from file.
 
 **Parameters:**
 - `path`: File path to load from
@@ -493,21 +714,61 @@ Loads tensor from file (static method).
 
 **Raises:** `RuntimeError` on file I/O or format errors
 
+**Note:** Currently defaults to `TensorDouble`. For other types, use the specific tensor class's load method directly.
+
 **Example:**
 ```python
-# On TensorDouble class
-loaded = dt.TensorDouble.load("data.dt", mmap=True)
+# Using convenience function (defaults to TensorDouble)
+loaded = dt.load("data.dt", mmap=True)
+
+# Using specific tensor type
+loaded = dt.TensorDouble.load("data.dt", mmap=False)
 ```
+
+#### `open(path: str, mmap: bool = True) -> ContextManager[Tensor]`
+Context manager for loading tensors from files. Automatically handles resource cleanup.
+
+**Parameters:**
+- `path`: File path to open
+- `mmap`: If `True`, use memory-mapped I/O
+
+**Returns:** Context manager yielding a tensor
+
+**Example:**
+```python
+with dt.open("large_data.dt", mmap=True) as tensor:
+    result = tensor.sum()
+    # Tensor is automatically detached when exiting context
+```
+
+#### `save_parquet(path: str) -> None`
+Saves tensor to Parquet file via Arrow.
+
+**Parameters:**
+- `path`: Parquet file path
+
+**Raises:** `NotImplementedError` (Parquet support planned for future version)
+
+#### `load_parquet(path: str, mmap: bool = True) -> Tensor`
+Loads tensor from Parquet file.
+
+**Parameters:**
+- `path`: Parquet file path
+- `mmap`: If `True`, use memory-mapped I/O
+
+**Raises:** `NotImplementedError` (Parquet support planned for future version)
+
+---
 
 ### Shared Memory
 
-#### `create_shared(name: str, shape: List[int], dtype: str = "", layout: str = "row") -> Tensor`
+#### `create_shared(name: str, shape: List[int], dtype: str = "float64", layout: str = "row") -> Tensor`
 Creates a shared-memory tensor (static method).
 
 **Parameters:**
 - `name`: Shared memory segment name
 - `shape`: Tensor shape
-- `dtype`: Data type string (optional, determined by tensor type)
+- `dtype`: Data type string - `"float32"`, `"float64"`, `"int32"`, `"int64"` (default: `"float64"`)
 - `layout`: Storage layout - `"row"` or `"column"` (default: `"row"`)
 
 **Returns:** Tensor backed by shared memory
@@ -517,13 +778,13 @@ Creates a shared-memory tensor (static method).
 **Example:**
 ```python
 # Process 1: Create shared memory
-shared = dt.TensorDouble.create_shared(
+shared = dt.create_shared(
     "risk_data", shape=[252, 500], dtype="float64", layout="row"
 )
 ```
 
 #### `attach_shared(name: str) -> Tensor`
-Attaches to an existing shared-memory tensor (static method).
+Attaches to an existing shared-memory tensor.
 
 **Parameters:**
 - `name`: Shared memory segment name
@@ -535,34 +796,40 @@ Attaches to an existing shared-memory tensor (static method).
 **Example:**
 ```python
 # Process 2: Attach to shared memory
-attached = dt.TensorDouble.attach_shared("risk_data")
+attached = dt.attach_shared("risk_data")
 ```
 
-#### `detach() -> None`
+#### `detach(tensor: Tensor) -> None`
 Unmaps shared-memory tensor (but shared memory persists).
+
+**Parameters:**
+- `tensor`: Shared memory tensor
 
 **Example:**
 ```python
-shared.detach()  # Unmap, but memory remains
+dt.detach(shared)  # Unmap, but memory remains
 ```
 
 #### `destroy_shared(name: str) -> None`
-Destroys a shared-memory segment (static method).
+Destroys a shared-memory segment.
 
 **Parameters:**
 - `name`: Shared memory segment name
 
 **Example:**
 ```python
-dt.TensorDouble.destroy_shared("risk_data")
+dt.destroy_shared("risk_data")
 ```
 
-#### `flush() -> None`
+#### `flush(tensor: Tensor) -> None`
 Forces write-back for file-backed or memory-mapped tensors.
+
+**Parameters:**
+- `tensor`: File-backed or memory-mapped tensor
 
 **Example:**
 ```python
-mapped_tensor.flush()  # Ensure writes are visible
+dt.flush(mapped_tensor)  # Ensure writes are visible
 ```
 
 ---
@@ -571,12 +838,13 @@ mapped_tensor.flush()  # Ensure writes are visible
 
 | From | To | Function | Zero-Copy |
 |------|-----|----------|-----------|
-| NumPy array | Tensor | `from_numpy_*()` | ❌ (copy) |
+| NumPy array | Tensor | `from_numpy()` | ❌ (copy) |
 | Tensor | NumPy array | `to_numpy()` | ✅ |
 | PyTorch tensor | Tensor | `from_torch()` | ✅ (if CPU, contiguous) |
-| Tensor | PyTorch tensor | `to_torch()` | ✅ |
-| Pandas Series | Tensor | `from_pandas_series()` | ❌ (copy) |
-| Pandas DataFrame | Tensor | `from_pandas_dataframe()` | ❌ (copy) |
+| Tensor | PyTorch tensor | `to_torch()` | ✅ (if device=None, dtype matches) |
+| Pandas Series | Tensor | `from_pandas()` | ❌ (copy) |
+| Pandas DataFrame | Tensor | `from_pandas()` | ❌ (copy) |
+| Tensor | Pandas Series/DataFrame | `to_pandas()` | ❌ (copy) |
 
 ---
 
@@ -587,14 +855,17 @@ Python operations raise `RuntimeError` on failure, including:
 - File I/O errors
 - Shared memory errors
 - Shape mismatches for operations
+- Window size exceeds tensor size (for rolling operations)
+- Insufficient elements for returns calculation (requires at least 2 elements)
 
 Always use try-except blocks for error handling:
 
 ```python
 try:
-    tensor = dt.TensorDouble.load("data.dt")
+    tensor = dt.load("data.dt")
+    returns = tensor.returns()
 except RuntimeError as e:
-    print(f"Error loading tensor: {e}")
+    print(f"Error: {e}")
 ```
 
 ---
@@ -614,4 +885,4 @@ See the following example files:
 - **Memory mapping**: Use `mmap=True` when loading large files for on-demand access
 - **Shared memory**: Ultra-low latency for inter-process communication
 - **Layout optimization**: Use `layout="column"` for column-wise queries, `layout="row"` for row-wise queries
-
+- **Unified API**: `from_numpy()` automatically handles all NumPy dtypes, simplifying code
