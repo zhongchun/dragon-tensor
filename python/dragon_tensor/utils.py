@@ -52,17 +52,17 @@ def from_numpy(arr):
 
     dtype = arr.dtype
     if dtype == np.float32:
-        return dragon_tensor.from_numpy_float(arr)
+        return dragon_tensor._from_numpy_float(arr)
     elif dtype == np.float64:
-        return dragon_tensor.from_numpy_double(arr)
+        return dragon_tensor._from_numpy_double(arr)
     elif dtype == np.int32:
-        return dragon_tensor.from_numpy_int(arr)
+        return dragon_tensor._from_numpy_int(arr)
     elif dtype == np.int64:
-        return dragon_tensor.from_numpy_long(arr)
+        return dragon_tensor._from_numpy_long(arr)
     else:
         # Try to convert to float64
         arr = arr.astype(np.float64)
-        return dragon_tensor.from_numpy_double(arr)
+        return dragon_tensor._from_numpy_double(arr)
 
 
 def to_numpy(tensor):

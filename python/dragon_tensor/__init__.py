@@ -11,12 +11,30 @@ try:
     import sys
     import os
 
-    # Add build directory to path if the module isn't installed
+    # The C++ module should be in the same directory as this __init__.py
+    # Add the package directory to sys.path to ensure we can import it
+    package_dir = os.path.dirname(__file__)
+    if package_dir not in sys.path:
+        sys.path.insert(0, package_dir)
+
+    # Also try adding build directory to path if the module isn't installed
     build_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "build"
     )
-    if build_dir not in sys.path and os.path.exists(build_dir):
-        sys.path.insert(0, build_dir)
+    # Try build/lib.<platform>/dragon_tensor directory
+    if os.path.exists(build_dir):
+        import platform
+        import sysconfig
+
+        plat_specifier = sysconfig.get_platform()
+        build_lib_dir = os.path.join(
+            build_dir, f"lib.{plat_specifier}", "dragon_tensor"
+        )
+        if os.path.exists(build_lib_dir) and build_lib_dir not in sys.path:
+            sys.path.insert(0, build_lib_dir)
+        # Also try the build directory itself
+        if build_dir not in sys.path:
+            sys.path.insert(0, build_dir)
 
     # Import the C++ extension module
     # The C++ module is now compiled as '_dragon_tensor_cpp' to avoid name conflict
@@ -28,10 +46,11 @@ try:
     TensorDouble = _dt_core.TensorDouble
     TensorInt = _dt_core.TensorInt
     TensorLong = _dt_core.TensorLong
-    from_numpy_float = _dt_core.from_numpy_float
-    from_numpy_double = _dt_core.from_numpy_double
-    from_numpy_int = _dt_core.from_numpy_int
-    from_numpy_long = _dt_core.from_numpy_long
+    # Keep type-specific functions private (used internally by utils.from_numpy)
+    _from_numpy_float = _dt_core.from_numpy_float
+    _from_numpy_double = _dt_core.from_numpy_double
+    _from_numpy_int = _dt_core.from_numpy_int
+    _from_numpy_long = _dt_core.from_numpy_long
     from_pandas_series = _dt_core.from_pandas_series
     from_pandas_dataframe = _dt_core.from_pandas_dataframe
     from_torch = _dt_core.from_torch
@@ -93,10 +112,6 @@ try:
         "TensorInt",
         "TensorLong",
         # Factory functions
-        "from_numpy_float",
-        "from_numpy_double",
-        "from_numpy_int",
-        "from_numpy_long",
         "from_pandas_series",
         "from_pandas_dataframe",
         "from_torch",

@@ -23,7 +23,7 @@ except ImportError:
 import dragon_tensor as dt
 
 # Use functions directly from dragon_tensor
-from_numpy = dt.from_numpy_double
+from_numpy = dt.from_numpy
 to_numpy = lambda t: t.to_numpy()
 from_pandas = dt.from_pandas_series
 to_pandas = lambda t, **kwargs: pd.Series(t.to_numpy()) if HAS_PANDAS else None
@@ -44,7 +44,7 @@ def example_numpy_integration():
     print(f"Dragon Tensor shape: {tensor.shape()}")
 
     # Perform operations
-    result = tensor.rolling_mean(window=10)
+    result = tensor.rolling_mean(10)
 
     # Convert back to numpy
     result_arr = to_numpy(result)
@@ -91,7 +91,7 @@ def example_pandas_integration():
     # Process each column
     for col in df.columns:
         col_tensor = from_pandas(df[col])
-        rolling_vol = col_tensor.rolling_std(window=20)
+        rolling_vol = col_tensor.rolling_std(20)
         print(f"{col} rolling volatility: {rolling_vol.to_numpy()[-1]:.4f}")
     print()
 
@@ -112,8 +112,8 @@ def example_torch_integration():
     print(f"Dragon Tensor shape: {dt_tensor.shape()}")
 
     # Perform calculations
-    rolling_mean = dt_tensor.rolling_mean(window=10)
-    rolling_std = dt_tensor.rolling_std(window=10)
+    rolling_mean = dt_tensor.rolling_mean(10)
+    rolling_std = dt_tensor.rolling_std(10)
 
     # Convert back to PyTorch
     result_torch = to_torch(rolling_mean)
@@ -131,7 +131,7 @@ def example_torch_integration():
         dt_tensor = from_torch(cpu_tensor)
 
         # Process
-        result = dt_tensor.rolling_mean(window=10)
+        result = dt_tensor.rolling_mean(10)
 
         # Convert back to GPU
         result_gpu = to_torch(result, device="cuda")
@@ -151,7 +151,7 @@ def example_workflow():
 
     # Calculate returns and metrics
     returns = tensor.returns()
-    rolling_vol = returns.rolling_std(window=20)
+    rolling_vol = returns.rolling_std(20)
 
     # Convert back to numpy for further processing
     returns_arr = to_numpy(returns)
