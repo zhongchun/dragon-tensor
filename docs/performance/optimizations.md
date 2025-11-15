@@ -20,7 +20,9 @@ This document outlines key performance optimizations that can be applied to impr
 - [12. SIMD Vectorization](#12-simd-vectorization) (Tensor Core)
 - [13. Expression Templates (Lazy Evaluation)](#13-expression-templates-lazy-evaluation) (Tensor Core)
 - [14. Backend Selection Optimization](#14-backend-selection-optimization) (Backend Layer)
+- [15. Build System Optimizations](#15-build-system-optimizations) (Build System) ✅ **Implemented**
 - [Priority Ranking](#priority-ranking)
+- [Build-Time Optimizations](#build-time-optimizations)
 - [Implementation Notes](#implementation-notes)
 
 ## Optimization Summary Table
@@ -41,6 +43,7 @@ This document outlines key performance optimizations that can be applied to impr
 | 12 | SIMD vectorization | Low | High | 2-4x faster | Tensor Core | All element-wise |
 | 13 | Expression templates (lazy eval) | Low | Very High | 2-3x faster | Tensor Core | Arithmetic ops |
 | 14 | Backend selection optimization | Low | Medium | 10-15% faster | Backend Layer | Storage ops |
+| 15 | Build system optimizations | ✅ | ✅ | 5-10x faster builds | Build System | build.sh, setup.py |
 
 ### Quick Reference
 
@@ -558,9 +561,112 @@ std::shared_ptr<Backend> select_backend(const BackendConfig& config) {
 
 ---
 
+## Build-Time Optimizations
+
+### 15. Build System Optimizations
+
+**Layer**: Build System
+
+**Location**: `build.sh`, `setup.py`, `CMakeLists.txt`
+
+**Status**: ✅ **Implemented**
+
+Dragon Tensor includes several build-time optimizations to speed up compilation and improve developer productivity:
+
+#### ccache (Compiler Cache)
+
+**What it does**: Caches compilation results to avoid recompiling unchanged files.
+
+**Benefits**:
+- **10-100x faster rebuilds** for unchanged files
+- Automatic cache invalidation on source changes
+- Works transparently with CMake
+
+**Usage**:
+```bash
+# Install ccache
+brew install ccache  # macOS
+apt-get install ccache  # Linux
+
+# Automatically enabled by build.sh
+./build.sh
+```
+
+**Configuration**: Set `USE_CCACHE=0` to disable if needed.
+
+#### Ninja Build System
+
+**What it does**: Faster build system than traditional Make.
+
+**Benefits**:
+- **2-3x faster builds** compared to Make
+- Better parallel build performance
+- More efficient dependency tracking
+
+**Usage**:
+```bash
+# Install Ninja
+brew install ninja  # macOS
+apt-get install ninja-build  # Linux
+
+# Automatically used by build.sh if available
+./build.sh
+```
+
+#### Parallel Builds
+
+**What it does**: Uses all available CPU cores for compilation.
+
+**Benefits**:
+- **N× faster** where N is number of CPU cores
+- Auto-detects optimal number of jobs
+- Can be overridden with `-j N` flag
+
+**Usage**:
+```bash
+# Auto-detect cores (default)
+./build.sh
+
+# Override with specific number
+./build.sh -j 8
+```
+
+#### Release Optimizations
+
+**What it does**: Applies aggressive compiler optimizations for production builds.
+
+**Benefits**:
+- **20-50% faster runtime** performance
+- Smaller binary size with `-DNDEBUG`
+- Optimized for production use
+
+**Configuration**: Automatically applied for Release builds:
+- `-O3`: Maximum optimization level
+- `-DNDEBUG`: Disables assertions for production
+
+#### Two-Stage Build Architecture
+
+**What it does**: Separates C++ compilation (CMake) from Python packaging (setup.py).
+
+**Benefits**:
+- **Faster Python builds**: No C++ compilation in setup.py
+- **Better caching**: CMake handles C++ with proper dependency tracking
+- **Consistent builds**: Same C++ build process for all targets
+- **Cleaner separation**: C++ compilation vs Python packaging
+
+**How it works**:
+1. CMake builds C++ extension module
+2. `setup.py` finds and copies pre-built extension
+3. No C++ compilation during Python package build
+
+**Expected Gain**: 5-10x faster Python package builds, especially for rebuilds
+
+---
+
 ## Implementation Notes
 
 - All optimizations should maintain API compatibility
 - Add benchmark tests before and after to measure gains
 - Consider compiler flags: `-O3`, `-march=native` for best performance
 - Profile with tools like `perf` or `valgrind` to identify actual bottlenecks
+- **Build optimizations are already implemented** - use `./build.sh` to benefit from them

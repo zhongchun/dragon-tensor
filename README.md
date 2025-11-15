@@ -200,6 +200,10 @@ The build script automatically:
 - Checks for required dependencies (CMake, Python, pybind11, NumPy)
 - Installs missing Python packages if needed
 - Configures CMake with correct paths
+- **Uses Ninja build system** (faster than Make) if available
+- **Enables ccache** for faster rebuilds (if installed)
+- **Auto-detects CPU cores** and builds with optimal parallel jobs
+- **Applies Release optimizations** (`-O3 -DNDEBUG`) for production builds
 - Builds all components in parallel
 - Reports build status
 
@@ -211,17 +215,21 @@ The build script automatically:
 # Create build directory
 mkdir build && cd build
 
-# Configure with CMake
+# Configure with CMake (use Ninja for faster builds)
 cmake .. \
     -DCMAKE_BUILD_TYPE=Release \
+    -G Ninja \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
     -DPython3_EXECUTABLE=$(which python3) \
     -Dpybind11_DIR=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")
 
-# Build
-make -j$(nproc)
+# Build with parallel jobs
+ninja -j$(nproc)
+# Or with make: make -j$(nproc)
 
-# Install Python package
+# Install Python package (setup.py will use pre-built extension)
 cd ..
+export CMAKE_BUILD_DIR=build
 pip install .
 ```
 
@@ -251,6 +259,11 @@ cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
 **Note:** The build script automatically generates Python wheels by default when Python bindings are enabled. No additional steps needed!
 
+**Optimized Build Process:**
+- C++ compilation is handled by CMake (with ccache/ninja optimizations)
+- `setup.py` uses pre-built extension modules (no C++ compilation in Python build)
+- Faster Python builds with better caching and parallel compilation
+
 ```bash
 # Wheel is automatically generated when running:
 ./build.sh
@@ -262,15 +275,22 @@ cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
 To build a wheel manually (if needed):
 
 ```bash
-# Install build tools (if not already installed)
-pip install build wheel
+# First, build C++ extension with CMake
+./build.sh --no-wheel
 
-# Build wheel
+# Then build Python wheel (setup.py will use pre-built extension)
+export CMAKE_BUILD_DIR=build
 python3 -m build --wheel
 
 # Install from wheel
 pip install dist/dragon_tensor-*.whl
 ```
+
+**Build Optimizations:**
+- **ccache**: Speeds up rebuilds significantly (install with `brew install ccache` on macOS)
+- **Ninja**: Faster build system than Make (install with `brew install ninja` on macOS)
+- **Parallel builds**: Automatically uses all available CPU cores
+- **Release flags**: `-O3 -DNDEBUG` for optimized production builds
 
 ### Code Formatting
 

@@ -236,6 +236,48 @@ if [ "$BUILD_PYTHON_BINDINGS" = "ON" ] && [ -n "$PYTHON_EXECUTABLE" ]; then
     print_info "Found pybind11 at: $PYBIND11_DIR"
 fi
 
+# Setup ccache if available and enabled
+USE_CCACHE="${USE_CCACHE:-1}"
+if [ "$USE_CCACHE" = "1" ] || [ "$USE_CCACHE" = "true" ] || [ "$USE_CCACHE" = "yes" ]; then
+    if command -v ccache &> /dev/null; then
+        export CC="ccache $(command -v gcc 2>/dev/null || command -v clang 2>/dev/null || echo 'gcc')"
+        export CXX="ccache $(command -v g++ 2>/dev/null || command -v clang++ 2>/dev/null || echo 'g++')"
+        print_info "Using ccache for faster rebuilds"
+        # Show ccache stats
+        if command -v ccache &> /dev/null; then
+            ccache -s > /dev/null 2>&1 && ccache -s | head -5
+        fi
+    else
+        print_warning "ccache not found. Install it for faster rebuilds: brew install ccache (macOS) or apt-get install ccache (Linux)"
+    fi
+fi
+
+# Check for ninja (faster build system)
+USE_NINJA="${USE_NINJA:-1}"
+NINJA_AVAILABLE=false
+if [ "$USE_NINJA" = "1" ] || [ "$USE_NINJA" = "true" ] || [ "$USE_NINJA" = "yes" ]; then
+    if command -v ninja &> /dev/null; then
+        NINJA_AVAILABLE=true
+        print_info "Using Ninja build system (faster than Make)"
+    else
+        print_warning "Ninja not found. Install it for faster builds: brew install ninja (macOS) or apt-get install ninja-build (Linux)"
+    fi
+fi
+
+# Auto-detect number of cores for parallel builds
+if [ -n "$JOBS" ]; then
+    CORES="$JOBS"
+else
+    if command -v nproc &> /dev/null; then
+        CORES=$(nproc)
+    elif command -v sysctl &> /dev/null; then
+        CORES=$(sysctl -n hw.ncpu)
+    else
+        CORES=4
+    fi
+fi
+print_info "Using $CORES parallel jobs"
+
 # Create build directory
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
@@ -248,6 +290,16 @@ CMAKE_ARGS=(
     "-DBUILD_TESTS=$BUILD_TESTS"
     "-DBUILD_EXAMPLES=$BUILD_EXAMPLES"
 )
+
+# Use Ninja generator if available
+if [ "$NINJA_AVAILABLE" = true ]; then
+    CMAKE_ARGS+=("-G" "Ninja")
+fi
+
+# Add optimization flags for Release builds
+if [ "$BUILD_TYPE" = "Release" ]; then
+    CMAKE_ARGS+=("-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG")
+fi
 
 if [ -n "$PYTHON_EXECUTABLE" ]; then
     CMAKE_ARGS+=("-DPython3_EXECUTABLE=$PYTHON_EXECUTABLE")
@@ -262,26 +314,29 @@ CMAKE_ARGS+=("..")
 print_info "CMake command: cmake ${CMAKE_ARGS[*]}"
 cmake "${CMAKE_ARGS[@]}"
 
-# Build
-print_info "Building..."
+# Build with parallel jobs
+print_info "Building with $CORES parallel jobs..."
 BUILD_ARGS=()
-if [ -n "$JOBS" ]; then
-    BUILD_ARGS+=("-j$JOBS")
+if [ "$NINJA_AVAILABLE" = true ]; then
+    # Ninja uses -j flag
+    BUILD_ARGS+=("-j$CORES")
 else
-    # Auto-detect number of cores
-    if command -v nproc &> /dev/null; then
-        CORES=$(nproc)
-    elif command -v sysctl &> /dev/null; then
-        CORES=$(sysctl -n hw.ncpu)
-    else
-        CORES=4
-    fi
+    # Make uses -j flag
     BUILD_ARGS+=("-j$CORES")
 fi
 
 cmake --build . "${BUILD_ARGS[@]}"
 
 print_info "Build completed successfully!"
+
+# Show ccache stats if used
+if [ "$USE_CCACHE" = "1" ] || [ "$USE_CCACHE" = "true" ] || [ "$USE_CCACHE" = "yes" ]; then
+    if command -v ccache &> /dev/null; then
+        echo ""
+        print_info "ccache statistics:"
+        ccache -s | head -10
+    fi
+fi
 
 # Show build results
 echo ""
@@ -306,10 +361,10 @@ fi
 # Build wheel if requested and Python bindings are enabled
 if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
     echo ""
-    print_info "Building Python wheel..."
+    print_info "Building Python wheel using setup.py..."
     cd ..
     
-    # Find the CMake-built extension module
+    # Verify the CMake-built extension module exists
     PYTHON_MODULE=$(find "$BUILD_DIR" -name "dragon_tensor*.so" -o -name "dragon_tensor*.dylib" | head -1)
     if [ -z "$PYTHON_MODULE" ]; then
         print_error "Python extension module not found in $BUILD_DIR"
@@ -318,82 +373,18 @@ if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
         print_info "Found extension module: $(basename $PYTHON_MODULE)"
         
         # Install required packages for wheel building
-        $PYTHON_EXECUTABLE -m pip install --quiet --upgrade pip setuptools wheel 2>/dev/null || true
+        $PYTHON_EXECUTABLE -m pip install --quiet --upgrade pip setuptools wheel build 2>/dev/null || true
         
-        # Try using wheel package to create wheel manually
-        print_info "Creating wheel package structure..."
+        # Set environment variable so setup.py knows where to find the pre-built module
+        export CMAKE_BUILD_DIR="$BUILD_DIR"
         
-        # Create a temporary directory for wheel building
-        TEMP_WHEEL_DIR=$(mktemp -d)
-        trap "rm -rf $TEMP_WHEEL_DIR" EXIT
+        # Build wheel using setup.py (which will copy the pre-built extension)
+        print_info "Running: $PYTHON_EXECUTABLE -m build --wheel"
+        $PYTHON_EXECUTABLE -m build --wheel --outdir dist
         
-        # Get package version and name
-        PACKAGE_NAME="dragon_tensor"
-        PACKAGE_VERSION="0.0.1"
-        PYTHON_TAG="py3"
-        ABI_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-        PLATFORM_TAG=$(python3 -c "import sysconfig; print(sysconfig.get_platform().replace('-', '_').replace('.', '_'))")
-        
-        # Determine extension suffix
-        if [[ "$PYTHON_MODULE" == *.so ]]; then
-            EXT_SUFFIX=".so"
-        elif [[ "$PYTHON_MODULE" == *.dylib ]]; then
-            EXT_SUFFIX=".so"  # Wheels use .so even on macOS
-        else
-            EXT_SUFFIX=".so"
-        fi
-        
-        # Create wheel directory structure
-        WHEEL_NAME="${PACKAGE_NAME}-${PACKAGE_VERSION}-${PYTHON_TAG}-none-${PLATFORM_TAG}"
-        WHEEL_DIR="$TEMP_WHEEL_DIR/$WHEEL_NAME"
-        mkdir -p "$WHEEL_DIR/dragon_tensor"
-        
-        # Copy Python package files
-        cp -r python/dragon_tensor/*.py "$WHEEL_DIR/dragon_tensor/" 2>/dev/null || true
-        
-        # Copy the built extension module
-        cp "$PYTHON_MODULE" "$WHEEL_DIR/dragon_tensor/dragon_tensor${EXT_SUFFIX}"
-        
-        # Create METADATA file
-        mkdir -p "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info"
-        cat > "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/METADATA" << EOF
-Metadata-Version: 2.1
-Name: ${PACKAGE_NAME}
-Version: ${PACKAGE_VERSION}
-Summary: High-performance tensor library for financial data analysis
-Author: Dragon Tensor Contributors
-License: MIT
-Classifier: Development Status :: 4 - Beta
-Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: C++
-EOF
-        
-        # Create WHEEL file
-        cat > "$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/WHEEL" << EOF
-Wheel-Version: 1.0
-Generator: dragon-tensor-build-script
-Root-Is-Purelib: false
-Tag: ${PYTHON_TAG}-none-${PLATFORM_TAG}
-EOF
-        
-        # Create RECORD file
-        RECORD_FILE="$WHEEL_DIR/${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/RECORD"
-        > "$RECORD_FILE"
-        for file in $(find "$WHEEL_DIR" -type f ! -name "RECORD"); do
-            rel_path=${file#$WHEEL_DIR/}
-            file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
-            file_hash=$(python3 -c "import hashlib; f=open('$file','rb'); print(hashlib.sha256(f.read()).hexdigest())" 2>/dev/null || echo "")
-            echo "$rel_path,sha256=$file_hash,$file_size" >> "$RECORD_FILE"
-        done
-        echo "${PACKAGE_NAME}-${PACKAGE_VERSION}.dist-info/RECORD,," >> "$RECORD_FILE"
-        
-        # Create dist directory and build wheel
-        mkdir -p dist
-        (cd "$TEMP_WHEEL_DIR" && zip -qr "../${WHEEL_NAME}.whl" .)
-        mv "$TEMP_WHEEL_DIR/../${WHEEL_NAME}.whl" dist/
-        
-        WHEEL_FILE="dist/${WHEEL_NAME}.whl"
-        if [ -f "$WHEEL_FILE" ]; then
+        # Show the built wheel
+        WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1)
+        if [ -n "$WHEEL_FILE" ] && [ -f "$WHEEL_FILE" ]; then
             print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
             ls -lh "$WHEEL_FILE"
         else

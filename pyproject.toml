@@ -46,10 +46,11 @@ all = [
 
 [tool.setuptools]
 packages = ["dragon_tensor"]
+exclude-package-data = {"*" = ["*.dylib"]}
 
 [tool.setuptools.package-dir]
 "" = "python"
 
 [tool.setuptools.package-data]
-dragon_tensor = ["*.txt"]
+dragon_tensor = ["*.txt", "*.so"]
 
