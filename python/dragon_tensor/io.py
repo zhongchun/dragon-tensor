@@ -55,8 +55,14 @@ def load(path: Union[str, Path], mmap: bool = True):
 
     Example:
         >>> tensor = dt.load("data.dt", mmap=True)
+
+    Note:
+        Currently defaults to TensorDouble. For other types, use the specific
+        tensor class's load method directly (e.g., TensorFloat.load()).
     """
-    return dragon_tensor.Tensor.load(str(path), mmap)
+    # Default to TensorDouble for now
+    # TODO: Auto-detect tensor type from file metadata
+    return dragon_tensor.TensorDouble.load(str(path), mmap)
 
 
 @contextlib.contextmanager
