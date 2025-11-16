@@ -45,9 +45,13 @@ option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_PYTHON_BINDINGS)
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
     
-    # Find NumPy (optional, but recommended)
-    find_package(Python3 COMPONENTS NumPy QUIET)
-    if(NOT Python3_NumPy_FOUND)
+    # Find NumPy (required for Python bindings)
+    # This ensures we use the correct NumPy headers at compile time
+    find_package(Python3 COMPONENTS NumPy REQUIRED)
+    if(Python3_NumPy_FOUND)
+        message(STATUS "Found NumPy version: ${Python3_NumPy_VERSION}")
+        message(STATUS "NumPy include directory: ${Python3_NumPy_INCLUDE_DIRS}")
+    else()
         message(WARNING "NumPy not found via CMake. Will attempt to find it at runtime.")
     endif()
     
@@ -139,6 +143,11 @@ if(BUILD_PYTHON_BINDINGS)
         pybind11::lto
     )
     
+    # Ensure NumPy headers are available for compilation
+    if(Python3_NumPy_FOUND)
+        target_include_directories(dragon_tensor_py PRIVATE ${Python3_NumPy_INCLUDE_DIRS})
+    endif()
+
     # Windows-specific extras
     if(WIN32)
         target_link_libraries(dragon_tensor_py PRIVATE pybind11::windows-extras)
