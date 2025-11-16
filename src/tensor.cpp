@@ -41,17 +41,28 @@ Tensor<T>::Tensor(const std::vector<size_t>& shape, T fill_value)
 
 template <typename T>
 Tensor<T>::Tensor(const Tensor& other)
-    : shape_(other.shape_), data_(other.data_) {}
+    : shape_(other.shape_),
+      data_(other.data_),
+      storage_mode_(other.storage_mode_),
+      layout_(other.layout_),
+      buffer_(other.buffer_) {}
 
 template <typename T>
 Tensor<T>::Tensor(Tensor&& other) noexcept
-    : shape_(std::move(other.shape_)), data_(std::move(other.data_)) {}
+    : shape_(std::move(other.shape_)),
+      data_(std::move(other.data_)),
+      storage_mode_(other.storage_mode_),
+      layout_(other.layout_),
+      buffer_(std::move(other.buffer_)) {}
 
 template <typename T>
 Tensor<T>& Tensor<T>::operator=(const Tensor& other) {
   if (this != &other) {
     shape_ = other.shape_;
     data_ = other.data_;
+    storage_mode_ = other.storage_mode_;
+    layout_ = other.layout_;
+    buffer_ = other.buffer_;
   }
   return *this;
 }
@@ -61,6 +72,9 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept {
   if (this != &other) {
     shape_ = std::move(other.shape_);
     data_ = std::move(other.data_);
+    storage_mode_ = other.storage_mode_;
+    layout_ = other.layout_;
+    buffer_ = std::move(other.buffer_);
   }
   return *this;
 }
@@ -99,7 +113,7 @@ template <typename T>
 Tensor<T> Tensor<T>::reshape(const std::vector<size_t>& new_shape) const {
   size_t new_size = std::accumulate(new_shape.begin(), new_shape.end(),
                                     size_t(1), std::multiplies<size_t>());
-  if (new_size != data_.size()) {
+  if (new_size != size()) {
     throw std::runtime_error("Cannot reshape: total size mismatch");
   }
 
@@ -111,34 +125,54 @@ Tensor<T> Tensor<T>::reshape(const std::vector<size_t>& new_shape) const {
 template <typename T>
 Tensor<T> Tensor<T>::flatten() const {
   Tensor result = *this;
-  result.shape_ = {data_.size()};
+  result.shape_ = {size()};
   return result;
 }
 
 template <typename T>
 T& Tensor<T>::at(size_t index) {
-  if (index >= data_.size()) {
+  size_t total_size = size();
+  if (index >= total_size) {
     throw std::runtime_error("Index out of bounds");
+  }
+  if (buffer_) {
+    T* ptr = static_cast<T*>(buffer_->data());
+    return ptr[index];
   }
   return data_[index];
 }
 
 template <typename T>
 const T& Tensor<T>::at(size_t index) const {
-  if (index >= data_.size()) {
+  size_t total_size = size();
+  if (index >= total_size) {
     throw std::runtime_error("Index out of bounds");
+  }
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    return ptr[index];
   }
   return data_[index];
 }
 
 template <typename T>
 T& Tensor<T>::at(const std::vector<size_t>& indices) {
-  return data_[calculate_offset(indices)];
+  size_t offset = calculate_offset(indices);
+  if (buffer_) {
+    T* ptr = static_cast<T*>(buffer_->data());
+    return ptr[offset];
+  }
+  return data_[offset];
 }
 
 template <typename T>
 const T& Tensor<T>::at(const std::vector<size_t>& indices) const {
-  return data_[calculate_offset(indices)];
+  size_t offset = calculate_offset(indices);
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    return ptr[offset];
+  }
+  return data_[offset];
 }
 
 template <typename T>
@@ -150,9 +184,12 @@ Tensor<T> Tensor<T>::operator+(const Tensor& other) const {
   Tensor result;
   if (shapes_match(other)) {
     result.shape_ = shape_;
-    result.data_.reserve(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      result.data_.push_back(data_[i] + other.data_[i]);
+    size_t total_size = size();
+    result.data_.reserve(total_size);
+    const T* this_data = raw_data();
+    const T* other_data = other.raw_data();
+    for (size_t i = 0; i < total_size; ++i) {
+      result.data_.push_back(this_data[i] + other_data[i]);
     }
   } else {
     // Broadcasting
@@ -164,9 +201,14 @@ Tensor<T> Tensor<T>::operator+(const Tensor& other) const {
 
 template <typename T>
 Tensor<T> Tensor<T>::operator+(T scalar) const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    val += scalar;
+  // If using buffer, we need to copy data first
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    result.data_[i] = src_data[i] + scalar;
   }
   return result;
 }
@@ -193,9 +235,14 @@ Tensor<T> Tensor<T>::operator-(const Tensor& other) const {
 
 template <typename T>
 Tensor<T> Tensor<T>::operator-(T scalar) const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    val -= scalar;
+  // If using buffer, we need to copy data first
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    result.data_[i] = src_data[i] - scalar;
   }
   return result;
 }
@@ -222,9 +269,14 @@ Tensor<T> Tensor<T>::operator*(const Tensor& other) const {
 
 template <typename T>
 Tensor<T> Tensor<T>::operator*(T scalar) const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    val *= scalar;
+  // If using buffer, we need to copy data first
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    result.data_[i] = src_data[i] * scalar;
   }
   return result;
 }
@@ -382,30 +434,42 @@ Tensor<T> Tensor<T>::abs() const {
 
 template <typename T>
 Tensor<T> Tensor<T>::sqrt() const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    val = std::sqrt(val);
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    result.data_[i] = std::sqrt(src_data[i]);
   }
   return result;
 }
 
 template <typename T>
 Tensor<T> Tensor<T>::exp() const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    val = std::exp(val);
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    result.data_[i] = std::exp(src_data[i]);
   }
   return result;
 }
 
 template <typename T>
 Tensor<T> Tensor<T>::log() const {
-  Tensor result = *this;
-  for (auto& val : result.data_) {
-    if (val <= T(0)) {
+  Tensor result;
+  result.shape_ = shape_;
+  size_t total_size = size();
+  result.data_.resize(total_size);
+  const T* src_data = raw_data();
+  for (size_t i = 0; i < total_size; ++i) {
+    if (src_data[i] <= T(0)) {
       throw std::runtime_error("Cannot take log of non-positive value");
     }
-    val = std::log(val);
+    result.data_[i] = std::log(src_data[i]);
   }
   return result;
 }
@@ -421,45 +485,70 @@ Tensor<T> Tensor<T>::pow(T exponent) const {
 
 template <typename T>
 T Tensor<T>::sum() const {
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    size_t total_size = size();
+    return std::accumulate(ptr, ptr + total_size, T(0));
+  }
   return std::accumulate(data_.begin(), data_.end(), T(0));
 }
 
 template <typename T>
 T Tensor<T>::mean() const {
-  if (data_.empty()) {
+  size_t total_size = size();
+  if (total_size == 0) {
     return T(0);
   }
-  return sum() / static_cast<T>(data_.size());
+  return sum() / static_cast<T>(total_size);
 }
 
 template <typename T>
 T Tensor<T>::max() const {
-  if (data_.empty()) {
+  size_t total_size = size();
+  if (total_size == 0) {
     throw std::runtime_error("Cannot find max of empty tensor");
+  }
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    return *std::max_element(ptr, ptr + total_size);
   }
   return *std::max_element(data_.begin(), data_.end());
 }
 
 template <typename T>
 T Tensor<T>::min() const {
-  if (data_.empty()) {
+  size_t total_size = size();
+  if (total_size == 0) {
     throw std::runtime_error("Cannot find min of empty tensor");
+  }
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    return *std::min_element(ptr, ptr + total_size);
   }
   return *std::min_element(data_.begin(), data_.end());
 }
 
 template <typename T>
 T Tensor<T>::var() const {
-  if (data_.empty()) {
+  size_t total_size = size();
+  if (total_size == 0) {
     return T(0);
   }
   T m = mean();
   T variance = T(0);
-  for (const auto& val : data_) {
-    T diff = val - m;
-    variance += diff * diff;
+  if (buffer_) {
+    const T* ptr = static_cast<const T*>(buffer_->data());
+    for (size_t i = 0; i < total_size; ++i) {
+      T diff = ptr[i] - m;
+      variance += diff * diff;
+    }
+  } else {
+    for (const auto& val : data_) {
+      T diff = val - m;
+      variance += diff * diff;
+    }
   }
-  return variance / static_cast<T>(data_.size());
+  return variance / static_cast<T>(total_size);
 }
 
 template <typename T>
@@ -477,13 +566,14 @@ Tensor<T> Tensor<T>::sum(size_t axis) const {
     throw std::runtime_error("Axis out of bounds");
   }
 
+  const T* src_data = raw_data();
   Tensor result;
   if (axis == 0) {  // Sum along columns (reduce rows)
     result.shape_ = {shape_[1]};
     result.data_.resize(shape_[1], T(0));
     for (size_t i = 0; i < shape_[0]; ++i) {
       for (size_t j = 0; j < shape_[1]; ++j) {
-        result.data_[j] += data_[i * shape_[1] + j];
+        result.data_[j] += src_data[i * shape_[1] + j];
       }
     }
   } else {  // axis == 1, Sum along rows (reduce columns)
@@ -491,7 +581,7 @@ Tensor<T> Tensor<T>::sum(size_t axis) const {
     result.data_.resize(shape_[0], T(0));
     for (size_t i = 0; i < shape_[0]; ++i) {
       for (size_t j = 0; j < shape_[1]; ++j) {
-        result.data_[i] += data_[i * shape_[1] + j];
+        result.data_[i] += src_data[i * shape_[1] + j];
       }
     }
   }

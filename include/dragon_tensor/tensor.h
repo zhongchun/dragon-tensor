@@ -25,7 +25,20 @@ enum class StorageMode;
 struct TensorMeta;
 
 template <typename T>
+class Tensor;
+
+// Forward declare io namespace functions (needed for friend declaration)
+namespace io {
+template <typename T>
+Tensor<T> load_tensor(std::string_view path, bool mmap);
+}  // namespace io
+
+template <typename T>
 class Tensor {
+  // Friend declaration for io namespace to access private members
+  // Note: This must match the declaration in io.h (without default argument)
+  friend Tensor<T> io::load_tensor<T>(std::string_view path, bool mmap);
+
  public:
   // Constructors
   Tensor() = default;
@@ -47,8 +60,18 @@ class Tensor {
   // Shape operations
   [[nodiscard]] const std::vector<size_t>& shape() const { return shape_; }
   [[nodiscard]] size_t ndim() const { return shape_.size(); }
-  [[nodiscard]] size_t size() const { return data_.size(); }
-  [[nodiscard]] bool empty() const { return data_.empty(); }
+  [[nodiscard]] size_t size() const {
+    if (buffer_) {
+      return buffer_->size_bytes() / sizeof(T);
+    }
+    return data_.size();
+  }
+  [[nodiscard]] bool empty() const {
+    if (buffer_) {
+      return buffer_->size_bytes() == 0;
+    }
+    return data_.empty();
+  }
 
   // Reshape
   [[nodiscard]] Tensor reshape(const std::vector<size_t>& new_shape) const;
@@ -57,8 +80,20 @@ class Tensor {
   [[nodiscard]] Tensor flatten() const;
 
   // Element access
-  T& operator[](size_t index) { return data_[index]; }
-  const T& operator[](size_t index) const { return data_[index]; }
+  T& operator[](size_t index) {
+    if (buffer_) {
+      T* ptr = static_cast<T*>(buffer_->data());
+      return ptr[index];
+    }
+    return data_[index];
+  }
+  const T& operator[](size_t index) const {
+    if (buffer_) {
+      const T* ptr = static_cast<const T*>(buffer_->data());
+      return ptr[index];
+    }
+    return data_[index];
+  }
 
   T& at(size_t index);
   const T& at(size_t index) const;
@@ -68,8 +103,18 @@ class Tensor {
 
   // Data access
   const std::vector<T>& data() const { return data_; }
-  T* raw_data() { return data_.data(); }
-  const T* raw_data() const { return data_.data(); }
+  T* raw_data() {
+    if (buffer_) {
+      return static_cast<T*>(buffer_->data());
+    }
+    return data_.data();
+  }
+  const T* raw_data() const {
+    if (buffer_) {
+      return static_cast<const T*>(buffer_->data());
+    }
+    return data_.data();
+  }
 
   // Arithmetic operations
   [[nodiscard]] Tensor operator+(const Tensor& other) const;
