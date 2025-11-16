@@ -372,7 +372,7 @@ if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
     echo ""
     print_info "Building Python wheel using setup.py..."
     cd ..
-    
+
     # Verify the CMake-built extension module exists
     PYTHON_MODULE=$(find "$BUILD_DIR" -name "dragon_tensor*.so" -o -name "dragon_tensor*.dylib" | head -1)
     if [ -z "$PYTHON_MODULE" ]; then
@@ -380,24 +380,48 @@ if [ "$BUILD_WHEEL" = "ON" ] && [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
         print_info "Skipping wheel build"
     else
         print_info "Found extension module: $(basename $PYTHON_MODULE)"
-        
+
         # Install required packages for wheel building
-        $PYTHON_EXECUTABLE -m pip install --quiet --upgrade pip setuptools wheel build 2>/dev/null || true
-        
-        # Set environment variable so setup.py knows where to find the pre-built module
-        export CMAKE_BUILD_DIR="$BUILD_DIR"
-        
-        # Build wheel using setup.py (which will copy the pre-built extension)
-        print_info "Running: $PYTHON_EXECUTABLE -m build --wheel"
-        $PYTHON_EXECUTABLE -m build --wheel --outdir dist
-        
-        # Show the built wheel
-        WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1)
-        if [ -n "$WHEEL_FILE" ] && [ -f "$WHEEL_FILE" ]; then
-            print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
-            ls -lh "$WHEEL_FILE"
+        print_info "Installing build dependencies..."
+        if ! $PYTHON_EXECUTABLE -m pip install --quiet --upgrade pip setuptools wheel build 2>/dev/null; then
+            print_warning "Failed to install build dependencies (network issue?). Trying to continue..."
+            # Check if packages are already installed
+            if ! $PYTHON_EXECUTABLE -c "import build" 2>/dev/null; then
+                print_error "build package is required but not available. Install manually: pip install build"
+                print_info "Skipping wheel build"
+                cd "$BUILD_DIR"
+            else
+                # build package is available, continue with wheel building
+                BUILD_WHEEL_CONTINUE=true
+            fi
         else
-            print_error "Failed to create wheel file"
+            BUILD_WHEEL_CONTINUE=true
+        fi
+
+        # Only proceed if we should continue
+        if [ "${BUILD_WHEEL_CONTINUE:-false}" = true ]; then
+            # Set environment variable so setup.py knows where to find the pre-built module
+            export CMAKE_BUILD_DIR="$BUILD_DIR"
+
+            # Build wheel using setup.py (which will copy the pre-built extension)
+            # Always use isolated environment building (default behavior)
+            print_info "Running: $PYTHON_EXECUTABLE -m build --wheel"
+            if ! $PYTHON_EXECUTABLE -m build --wheel --outdir dist 2>&1; then
+                print_error "Failed to build wheel (this may be due to network/proxy issues)"
+                print_info "You can try:"
+                print_info "  1. Check your network/proxy settings"
+                print_info "  2. Ensure pip can access PyPI"
+                cd "$BUILD_DIR"
+            fi
+
+            # Show the built wheel
+            WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1)
+            if [ -n "$WHEEL_FILE" ] && [ -f "$WHEEL_FILE" ]; then
+                print_info "Wheel built successfully: $(basename $WHEEL_FILE)"
+                ls -lh "$WHEEL_FILE"
+            else
+                print_error "Failed to create wheel file"
+            fi
         fi
     fi
     cd "$BUILD_DIR"
@@ -417,13 +441,16 @@ if [ "$INSTALL" = "ON" ]; then
     fi
 fi
 
+# Return to project root for final messages
+cd "$(dirname "$0")" || cd ..
+
 echo ""
 print_info "Build script completed!"
 print_info "To run the C++ example: ./$BUILD_DIR/examples/example_basic"
 if [ "$BUILD_PYTHON_BINDINGS" = "ON" ]; then
     print_info "To test Python: python examples/basic_usage.py"
     if [ "$BUILD_WHEEL" = "ON" ]; then
-        WHEEL_FILE=$(ls -t ../dist/*.whl 2>/dev/null | head -1 2>/dev/null)
+        WHEEL_FILE=$(ls -t dist/*.whl 2>/dev/null | head -1 2>/dev/null)
         if [ -n "$WHEEL_FILE" ]; then
             print_info "Wheel available: dist/$(basename $WHEEL_FILE)"
         fi

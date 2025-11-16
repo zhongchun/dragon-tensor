@@ -314,6 +314,8 @@ Or run the example:
 
 ### Basic Operations
 
+The `examples/basic_usage.py` file contains comprehensive examples covering all major features:
+
 ```python
 import dragon_tensor as dt
 import numpy as np
@@ -338,6 +340,8 @@ exp_tensor = tensor.exp()
 reshaped = tensor.reshape([1, 5])
 flattened = tensor.flatten()
 ```
+
+**Note:** For comprehensive examples covering all features (mathematical functions, matrix operations, slicing, 3D tensors, file I/O, type conversions, and more), see `examples/basic_usage.py` which contains 17 detailed example functions.
 
 ### Financial Analysis Examples
 
@@ -849,8 +853,11 @@ tensor = dt.from_numpy(arr); \
 print('Sum:', tensor.sum()); print('Mean:', tensor.mean())"
 
 # Run example scripts (requires proper installation)
+# Comprehensive examples covering all major features
 python3 examples/basic_usage.py
+# Financial analysis examples
 python3 examples/financial_analysis.py
+# Integration with NumPy/Pandas/PyTorch/Arrow
 python3 examples/integration_examples.py
 ```
 

@@ -1029,7 +1029,24 @@ except RuntimeError as e:
 ## Examples
 
 See the following example files:
-- `examples/basic_usage.py` - Basic operations
+- `examples/basic_usage.py` - Comprehensive examples covering:
+  - Basic operations (shape, size, sum, mean, std, max, min)
+  - Arithmetic operations (addition, subtraction, multiplication, division)
+  - Financial operations (returns, rolling statistics)
+  - Correlation and covariance
+  - 2D tensor operations (axis operations, transpose)
+  - Mathematical functions (abs, sqrt, exp, log, pow)
+  - Comparison operations
+  - Slicing and indexing
+  - Reshaping operations
+  - Matrix operations (matmul, transpose)
+  - Statistical operations with axis
+  - In-place operations
+  - 3D tensor operations
+  - NumPy integration
+  - File I/O operations (save/load with mmap)
+  - Advanced financial operations (portfolio calculations)
+  - Type conversions (all tensor types)
 - `examples/financial_analysis.py` - Financial analysis examples
 - `examples/integration_examples.py` - Integration with NumPy/Pandas/PyTorch/Arrow
 
