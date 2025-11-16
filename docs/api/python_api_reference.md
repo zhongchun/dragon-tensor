@@ -179,7 +179,10 @@ Creates a tensor from a PyTorch tensor (zero-copy when PyTorch tensor is CPU and
 
 **Returns:** Tensor instance (type depends on PyTorch dtype)
 
-**Note:** PyTorch tensor must be on CPU and contiguous for zero-copy conversion.
+**Note:**
+- PyTorch tensor must be on CPU and contiguous for zero-copy conversion
+- Automatically handles NumPy compatibility issues by using fallback conversion methods when needed
+- GPU tensors are automatically moved to CPU before conversion
 
 **Example:**
 ```python
@@ -188,17 +191,17 @@ import torch
 torch_tensor = torch.randn(100, dtype=torch.float64)
 dt_tensor = dt.from_torch(torch_tensor)
 
-# GPU tensors must be moved to CPU first
+# GPU tensors are automatically moved to CPU
 gpu_tensor = torch.randn(100, device='cuda')
-cpu_tensor = gpu_tensor.cpu()
-dt_tensor = dt.from_torch(cpu_tensor)
+dt_tensor = dt.from_torch(gpu_tensor)  # Automatically handles CPU conversion
 ```
 
 #### `to_torch()`
 ```python
 dt.to_torch(tensor: Tensor, device=None, dtype=None) -> torch.Tensor
+tensor.to_torch(device=None, dtype=None) -> torch.Tensor
 ```
-Converts tensor to PyTorch tensor (zero-copy via NumPy).
+Converts tensor to PyTorch tensor (zero-copy when possible).
 
 **Parameters:**
 - `tensor`: Dragon Tensor
@@ -207,13 +210,23 @@ Converts tensor to PyTorch tensor (zero-copy via NumPy).
 
 **Returns:** PyTorch tensor (zero-copy when device=None and dtype matches)
 
+**Note:** Can be called as either a module function `dt.to_torch(tensor)` or as a tensor method `tensor.to_torch()`. Handles NumPy compatibility issues automatically by using fallback methods when needed.
+
 **Example:**
 ```python
 tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+
+# As module function
 torch_tensor = dt.to_torch(tensor)  # Zero-copy conversion
 
+# As tensor method (preferred)
+torch_tensor = tensor.to_torch()  # Zero-copy conversion
+
 # Convert to GPU (requires copying)
-torch_gpu = dt.to_torch(tensor, device='cuda')
+torch_gpu = tensor.to_torch(device='cuda')
+
+# Convert with different dtype (requires copying)
+torch_float32 = tensor.to_torch(dtype=torch.float32)
 ```
 
 ### Apache Arrow Conversion
@@ -463,6 +476,24 @@ tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
 np_array = tensor.to_numpy()  # Zero-copy conversion
 ```
 
+#### `to_torch(device=None, dtype=None) -> torch.Tensor`
+Converts tensor to PyTorch tensor (zero-copy when possible).
+
+**Parameters:**
+- `device`: Optional device (default: CPU, zero-copy)
+- `dtype`: Optional dtype (default: matches tensor dtype, zero-copy)
+
+**Returns:** PyTorch tensor (zero-copy when device=None and dtype matches)
+
+**Example:**
+```python
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+torch_tensor = tensor.to_torch()  # Zero-copy conversion
+
+# Convert to GPU (requires copying)
+torch_gpu = tensor.to_torch(device='cuda')
+```
+
 ---
 
 ### Arithmetic Operations
@@ -503,6 +534,12 @@ sum_result = a + b        # [5.0, 7.0, 9.0]
 scaled = a * 2.0          # [2.0, 4.0, 6.0]
 product = a * b           # [4.0, 10.0, 18.0]
 quotient = b / a          # [4.0, 2.5, 2.0]
+
+# Multiple tensor operations (chaining)
+c = dt.from_numpy(np.array([7.0, 8.0, 9.0]))
+result = a + b + c        # [12.0, 15.0, 18.0]
+result = (a + b) * c      # [35.0, 56.0, 81.0]
+result = a * b * c        # [28.0, 80.0, 162.0]
 ```
 
 #### In-place Operations
@@ -524,6 +561,13 @@ tensor /= scalar: Tensor
 tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
 tensor += 5.0   # tensor becomes [6.0, 7.0, 8.0]
 tensor *= 2.0   # tensor becomes [12.0, 14.0, 16.0]
+
+# Chaining in-place operations with multiple tensors
+a = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+b = dt.from_numpy(np.array([4.0, 5.0, 6.0]))
+a += b          # a becomes [5.0, 7.0, 9.0]
+a *= 2.0        # a becomes [10.0, 14.0, 18.0]
+a -= b          # a becomes [6.0, 9.0, 12.0]
 ```
 
 ---
@@ -678,6 +722,20 @@ asset1 = dt.from_numpy(np.array([100.0, 102.0, 101.0, 105.0, 108.0]))
 asset2 = dt.from_numpy(np.array([50.0, 51.0, 50.5, 52.5, 54.0]))
 corr = asset1.correlation(asset2)
 cov = asset1.covariance(asset2)
+
+# Multiple asset correlation analysis
+asset3 = dt.from_numpy(np.array([200.0, 201.0, 200.5, 202.5, 204.0]))
+corr12 = asset1.correlation(asset2)
+corr13 = asset1.correlation(asset3)
+corr23 = asset2.correlation(asset3)
+
+# Portfolio returns from multiple assets
+returns1 = asset1.returns()
+returns2 = asset2.returns()
+returns3 = asset3.returns()
+
+# Equal-weighted portfolio
+portfolio_returns = (returns1 + returns2 + returns3) / 3.0
 ```
 
 ---
@@ -739,6 +797,11 @@ Matrix multiplication (2D tensors only).
 a = dt.from_numpy(np.array([[1, 2, 3], [4, 5, 6]]))
 b = dt.from_numpy(np.array([[7, 8], [9, 10], [11, 12]]))
 result = a.matmul(b)  # 2x2 matrix product
+
+# Chaining matrix multiplications
+c = dt.from_numpy(np.array([[1, 0], [0, 1]]))  # Identity matrix
+result = a.matmul(b).matmul(c)  # (A * B) * I = A * B
+result2 = a.matmul(b.matmul(c))  # A * (B * I) = A * B
 ```
 
 ---
@@ -956,11 +1019,44 @@ See the following example files:
 - `examples/financial_analysis.py` - Financial analysis examples
 - `examples/integration_examples.py` - Integration with NumPy/Pandas/PyTorch/Arrow
 
+### Multiple Tensor Operations
+
+Dragon Tensor supports comprehensive operations with multiple tensors:
+
+```python
+import dragon_tensor as dt
+import numpy as np
+
+# Chaining arithmetic operations
+a = dt.from_numpy(np.array([1.0, 2.0, 3.0]))
+b = dt.from_numpy(np.array([4.0, 5.0, 6.0]))
+c = dt.from_numpy(np.array([7.0, 8.0, 9.0]))
+
+# Multiple tensor addition
+result = a + b + c  # [12.0, 15.0, 18.0]
+
+# Complex chaining
+result = (a + b) * c - a  # [35.0, 56.0, 81.0] - [1.0, 2.0, 3.0]
+
+# Portfolio calculations
+asset1 = dt.from_numpy(np.array([100.0, 102.0, 101.0, 105.0, 108.0]))
+asset2 = dt.from_numpy(np.array([50.0, 51.0, 50.5, 52.5, 54.0]))
+returns1 = asset1.returns()
+returns2 = asset2.returns()
+
+# Equal-weighted portfolio
+portfolio = (returns1 + returns2) / 2.0
+
+# Correlation matrix style analysis
+corr = asset1.correlation(asset2)
+```
+
 ---
 
 ## Performance Notes
 
-- **Zero-copy conversions**: `to_numpy()`, `to_torch()`, and `to_arrow()` provide zero-copy views when possible
+- **Zero-copy conversions**: `to_numpy()`, `to_torch()`, and `to_arrow()` provide zero-copy views when possible (available as both methods and module functions)
+- **NumPy compatibility**: PyTorch integration automatically handles NumPy 2.x compatibility issues with fallback conversion methods
 - **Memory mapping**: Use `mmap=True` when loading large files for on-demand access
 - **Shared memory**: Ultra-low latency for inter-process communication
 - **Layout optimization**: Use `layout="column"` for column-wise queries, `layout="row"` for row-wise queries

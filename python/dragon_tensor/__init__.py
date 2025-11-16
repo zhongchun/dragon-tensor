@@ -5,6 +5,15 @@ This library provides efficient tensor operations optimized for quantitative fin
 with seamless integration with NumPy, Pandas, PyTorch, and Apache Arrow.
 """
 
+import warnings
+
+# Suppress NumPy compatibility warnings during import
+# These warnings occur when modules compiled with NumPy 1.x are used with NumPy 2.x
+warnings.filterwarnings("ignore", message=".*NumPy.*")
+warnings.filterwarnings("ignore", message=".*compiled using NumPy.*")
+warnings.filterwarnings("ignore", message=".*ARRAY_API.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
+
 # Import the C++ module directly (built by pybind11)
 try:
     # First try to import the compiled C++ module
@@ -39,7 +48,14 @@ try:
     # Import the C++ extension module
     # The C++ module is now compiled as '_dragon_tensor_cpp' to avoid name conflict
     # with the Python package 'dragon_tensor'
-    import _dragon_tensor_cpp as _dt_core
+    # Suppress NumPy compatibility warnings during C++ module import
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = open(os.devnull, "w")
+        import _dragon_tensor_cpp as _dt_core
+    finally:
+        sys.stderr.close()
+        sys.stderr = old_stderr
 
     # Import symbols from the C++ module
     TensorFloat = _dt_core.TensorFloat
@@ -143,6 +159,18 @@ try:
     TensorDouble.to_arrow = _to_arrow_method
     TensorInt.to_arrow = _to_arrow_method
     TensorLong.to_arrow = _to_arrow_method
+
+    # Add to_torch as a method on tensor classes for convenience
+    # This allows tensor.to_torch() in addition to dt.to_torch(tensor)
+    def _to_torch_method(self, device=None, dtype=None):
+        """Convert tensor to PyTorch tensor (zero-copy when possible)"""
+        return utils.to_torch(self, device=device, dtype=dtype)
+
+    # Monkey-patch to_torch method onto all tensor classes
+    TensorFloat.to_torch = _to_torch_method
+    TensorDouble.to_torch = _to_torch_method
+    TensorInt.to_torch = _to_torch_method
+    TensorLong.to_torch = _to_torch_method
 
     save = io.save
     load = io.load

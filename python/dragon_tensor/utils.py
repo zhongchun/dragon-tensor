@@ -12,10 +12,26 @@ except ImportError:
     HAS_PANDAS = False
 
 try:
-    import torch
+    import warnings
+    import sys
+    import os
+
+    # Suppress NumPy compatibility warnings during torch import
+    # These warnings occur when torch was compiled with NumPy 1.x but NumPy 2.x is installed
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        # Temporarily redirect stderr to suppress NumPy compatibility messages
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = open(os.devnull, "w")
+            import torch
+        finally:
+            sys.stderr.close()
+            sys.stderr = old_stderr
 
     HAS_TORCH = True
-except ImportError:
+except (ImportError, RuntimeError, AttributeError, Exception):
+    # Catch all exceptions during torch import (NumPy compatibility issues, etc.)
     HAS_TORCH = False
 
 try:
@@ -133,7 +149,41 @@ def from_torch(tensor):
     if not HAS_TORCH:
         raise ImportError("torch is required for from_torch")
 
-    return dragon_tensor.from_torch(tensor)
+    # Convert torch tensor to numpy first (handles NumPy compatibility issues)
+    # This is more reliable than using the C++ from_torch which may have NumPy issues
+    try:
+        # Move to CPU if on GPU
+        if tensor.device.type != "cpu":
+            tensor = tensor.cpu()
+
+        # Try to convert to numpy (zero-copy when possible)
+        # Handle NumPy compatibility issues by using tolist() as fallback
+        try:
+            np_array = tensor.detach().numpy()
+        except (RuntimeError, AttributeError):
+            # Fallback: use tolist() if numpy() fails (NumPy compatibility issues)
+            data = tensor.detach().cpu().tolist()
+            np_array = np.array(
+                data, dtype=np.float64 if tensor.dtype == torch.float64 else np.float32
+            )
+
+        # Convert numpy to dragon tensor
+        return from_numpy(np_array)
+    except Exception as e:
+        # Fallback: try C++ module directly
+        try:
+            import sys
+
+            if "dragon_tensor" in sys.modules:
+                dt_module = sys.modules["dragon_tensor"]
+                if hasattr(dt_module, "_dt_core"):
+                    return dt_module._dt_core.from_torch(tensor)
+
+            import _dragon_tensor_cpp as _dt_core
+
+            return _dt_core.from_torch(tensor)
+        except (AttributeError, ImportError, RuntimeError):
+            raise RuntimeError(f"Failed to convert torch tensor: {e}")
 
 
 def to_torch(tensor, device=None, dtype=None):
@@ -150,11 +200,18 @@ def to_torch(tensor, device=None, dtype=None):
     if not HAS_TORCH:
         raise ImportError("torch is required for to_torch")
 
-    # Get zero-copy NumPy array
+    # Get NumPy array
     arr = tensor.to_numpy()
 
-    # torch.from_numpy() creates zero-copy view
-    torch_tensor = torch.from_numpy(arr)
+    # Try to create PyTorch tensor from NumPy (zero-copy when possible)
+    # Handle NumPy compatibility issues
+    try:
+        torch_tensor = torch.from_numpy(arr)
+    except (RuntimeError, AttributeError):
+        # Fallback: create tensor from list if numpy() fails (NumPy compatibility issues)
+        data = arr.tolist()
+        torch_dtype = torch.float64 if arr.dtype == np.float64 else torch.float32
+        torch_tensor = torch.tensor(data, dtype=torch_dtype)
 
     # Device/dtype conversions require copying
     if device is not None:

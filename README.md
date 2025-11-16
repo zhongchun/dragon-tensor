@@ -379,6 +379,18 @@ print("Correlation:", corr.to_numpy()[0])
 # Covariance
 cov = asset1.covariance(asset2)
 print("Covariance:", cov.to_numpy()[0])
+
+# Multiple asset analysis
+asset3 = dt.from_numpy(np.array([200, 201, 200.5, 202.5, 204], dtype=np.float64))
+corr12 = asset1.correlation(asset2)
+corr13 = asset1.correlation(asset3)
+corr23 = asset2.correlation(asset3)
+
+# Portfolio returns from multiple assets
+returns1 = asset1.returns()
+returns2 = asset2.returns()
+returns3 = asset3.returns()
+portfolio_returns = (returns1 + returns2 + returns3) / 3.0  # Equal-weighted
 ```
 
 ### Integration Examples
@@ -388,14 +400,15 @@ print("Covariance:", cov.to_numpy()[0])
 ```python
 import pandas as pd
 import dragon_tensor as dt
+import numpy as np
 
 # Load financial data
-df = pd.DataFrame({'price': [100, 102, 101, 105, 108]})
+df = pd.DataFrame({'price': [100.0, 102.0, 101.0, 105.0, 108.0]})
 tensor = dt.from_pandas(df['price'])
 
 # Perform calculations
 returns = tensor.returns()
-rolling_volatility = tensor.rolling_std(20)
+rolling_volatility = tensor.rolling_std(3)  # Use window size that fits the data
 
 # Convert back to pandas
 returns_series = pd.Series(returns.to_numpy(), index=df.index[1:])
@@ -888,8 +901,9 @@ The test suite includes:
 - **`test_finance.py`** (12 tests): Returns, rolling statistics, correlation, covariance, financial workflows
 - **`test_io.py`** (10 tests): Save/load operations, memory mapping, layout options, error handling
 - **`test_arrow_integration.py`** (16 tests): Apache Arrow round-trip conversions, zero-copy operations, all tensor types, edge cases
+- **`test_multiple_tensors.py`** (30 tests): Multiple tensor operations, chaining, in-place operations, comparisons, matrix operations, statistical operations, financial workflows, type conversions, edge cases
 
-**Total: 74 tests** covering the core functionality of Dragon Tensor.
+**Total: 104 tests** covering the core functionality of Dragon Tensor.
 
 ## Troubleshooting
 
