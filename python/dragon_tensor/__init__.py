@@ -131,6 +131,19 @@ try:
     to_torch = utils.to_torch
     from_arrow = utils.from_arrow
     to_arrow = utils.to_arrow
+
+    # Add to_arrow as a method on tensor classes for convenience
+    # This allows tensor.to_arrow() in addition to dt.to_arrow(tensor)
+    def _to_arrow_method(self):
+        """Convert tensor to Arrow array (zero-copy when possible)"""
+        return utils.to_arrow(self)
+
+    # Monkey-patch to_arrow method onto all tensor classes
+    TensorFloat.to_arrow = _to_arrow_method
+    TensorDouble.to_arrow = _to_arrow_method
+    TensorInt.to_arrow = _to_arrow_method
+    TensorLong.to_arrow = _to_arrow_method
+
     save = io.save
     load = io.load
     open = io.open

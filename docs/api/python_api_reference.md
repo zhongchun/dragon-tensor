@@ -7,6 +7,10 @@ This document provides comprehensive API reference for the Dragon Tensor Python 
 - [Module Overview](#module-overview)
 - [Tensor Classes](#tensor-classes)
 - [Factory Functions](#factory-functions)
+  - [NumPy Conversion](#numpy-conversion)
+  - [Pandas Conversion](#pandas-conversion)
+  - [PyTorch Conversion](#pytorch-conversion)
+  - [Apache Arrow Conversion](#apache-arrow-conversion)
 - [Tensor Methods](#tensor-methods)
   - [Shape and Size](#shape-and-size)
   - [Transformation](#transformation)
@@ -38,7 +42,7 @@ Import the module:
 import dragon_tensor as dt
 ```
 
-The module provides tensor classes and conversion functions for integration with NumPy, Pandas, and PyTorch.
+The module provides tensor classes and conversion functions for integration with NumPy, Pandas, PyTorch, and Apache Arrow.
 
 ---
 
@@ -211,6 +215,79 @@ torch_tensor = dt.to_torch(tensor)  # Zero-copy conversion
 # Convert to GPU (requires copying)
 torch_gpu = dt.to_torch(tensor, device='cuda')
 ```
+
+### Apache Arrow Conversion
+
+#### `from_arrow()`
+```python
+dt.from_arrow(arrow_array: pa.Array) -> TensorFloat | TensorDouble | TensorInt | TensorLong
+```
+Creates a tensor from an Apache Arrow Array (zero-copy when memory layout is compatible).
+
+**Parameters:**
+- `arrow_array`: PyArrow Array
+
+**Returns:** Tensor instance (type depends on Arrow array type)
+
+**Supported Arrow types:**
+- `pa.float32()` → `TensorFloat`
+- `pa.float64()` → `TensorDouble`
+- `pa.int32()` → `TensorInt`
+- `pa.int64()` → `TensorLong`
+
+**Note:** Requires `pyarrow` to be installed. Uses Arrow's `to_numpy()` for conversion, which can be zero-copy when memory layouts are compatible.
+
+**Example:**
+```python
+import pyarrow as pa
+
+# Create Arrow array
+arrow_arr = pa.array([1.0, 2.0, 3.0, 4.0, 5.0], type=pa.float64())
+tensor = dt.from_arrow(arrow_arr)  # Returns TensorDouble
+
+# Different types
+arrow_int = pa.array([1, 2, 3], type=pa.int32())
+tensor_int = dt.from_arrow(arrow_int)  # Returns TensorInt
+```
+
+**Raises:**
+- `ImportError`: If `pyarrow` is not installed
+- `TypeError`: If input is not a PyArrow Array
+- `RuntimeError`: If Arrow array is empty (tensors require at least one element)
+
+#### `to_arrow()`
+```python
+dt.to_arrow(tensor: Tensor) -> pa.Array
+tensor.to_arrow() -> pa.Array
+```
+Converts tensor to Apache Arrow Array (zero-copy when memory layout is compatible).
+
+**Parameters:**
+- `tensor`: Dragon Tensor
+
+**Returns:** PyArrow Array (zero-copy when memory layout is compatible)
+
+**Note:** Can be called as either a module function `dt.to_arrow(tensor)` or as a tensor method `tensor.to_arrow()`. Requires `pyarrow` to be installed.
+
+**Example:**
+```python
+import pyarrow as pa
+
+# Create tensor
+tensor = dt.from_numpy(np.array([1.0, 2.0, 3.0, 4.0, 5.0]))
+
+# Convert to Arrow (module function)
+arrow_arr = dt.to_arrow(tensor)
+
+# Or use as method
+arrow_arr = tensor.to_arrow()
+
+# Verify conversion
+print(arrow_arr.to_numpy())  # [1. 2. 3. 4. 5.]
+```
+
+**Raises:**
+- `ImportError`: If `pyarrow` is not installed
 
 ### Direct Factory Functions
 
@@ -845,6 +922,8 @@ dt.flush(mapped_tensor)  # Ensure writes are visible
 | Pandas Series | Tensor | `from_pandas()` | ❌ (copy) |
 | Pandas DataFrame | Tensor | `from_pandas()` | ❌ (copy) |
 | Tensor | Pandas Series/DataFrame | `to_pandas()` | ❌ (copy) |
+| Arrow Array | Tensor | `from_arrow()` | ✅ (when memory layout compatible) |
+| Tensor | Arrow Array | `to_arrow()` | ✅ (when memory layout compatible) |
 
 ---
 
@@ -875,14 +954,15 @@ except RuntimeError as e:
 See the following example files:
 - `examples/basic_usage.py` - Basic operations
 - `examples/financial_analysis.py` - Financial analysis examples
-- `examples/integration_examples.py` - Integration with NumPy/Pandas/PyTorch
+- `examples/integration_examples.py` - Integration with NumPy/Pandas/PyTorch/Arrow
 
 ---
 
 ## Performance Notes
 
-- **Zero-copy conversions**: `to_numpy()` and `to_torch()` provide zero-copy views when possible
+- **Zero-copy conversions**: `to_numpy()`, `to_torch()`, and `to_arrow()` provide zero-copy views when possible
 - **Memory mapping**: Use `mmap=True` when loading large files for on-demand access
 - **Shared memory**: Ultra-low latency for inter-process communication
 - **Layout optimization**: Use `layout="column"` for column-wise queries, `layout="row"` for row-wise queries
 - **Unified API**: `from_numpy()` automatically handles all NumPy dtypes, simplifying code
+- **Arrow integration**: `from_arrow()` and `to_arrow()` enable efficient data exchange with the Arrow ecosystem without memory duplication when layouts are compatible

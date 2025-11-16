@@ -166,7 +166,7 @@ def to_torch(tensor, device=None, dtype=None):
 
 
 def from_arrow(arrow_array):
-    """Convert Arrow Array to Dragon Tensor
+    """Convert Arrow Array to Dragon Tensor (zero-copy when possible)
 
     Args:
         arrow_array: pyarrow.Array
@@ -177,12 +177,22 @@ def from_arrow(arrow_array):
     if not HAS_ARROW:
         raise ImportError("pyarrow is required for from_arrow")
 
-    # Placeholder - will be implemented when Arrow interop is added
-    raise NotImplementedError("Arrow interop not yet implemented")
+    import pyarrow as pa
+
+    if not isinstance(arrow_array, pa.Array):
+        raise TypeError(f"Expected pyarrow.Array, got {type(arrow_array)}")
+
+    # Convert Arrow array to numpy (zero-copy when memory layout is compatible)
+    # Arrow's to_numpy() method can do zero-copy conversion for compatible types
+    np_arr = arrow_array.to_numpy(zero_copy_only=False)
+
+    # Convert numpy array to Dragon Tensor
+    # This uses the existing from_numpy which handles dtype conversion
+    return from_numpy(np_arr)
 
 
 def to_arrow(tensor):
-    """Convert Dragon Tensor to Arrow Array
+    """Convert Dragon Tensor to Arrow Array (zero-copy when possible)
 
     Args:
         tensor: Dragon Tensor
@@ -193,8 +203,14 @@ def to_arrow(tensor):
     if not HAS_ARROW:
         raise ImportError("pyarrow is required for to_arrow")
 
-    # Placeholder - will be implemented when Arrow interop is added
-    raise NotImplementedError("Arrow interop not yet implemented")
+    import pyarrow as pa
+
+    # Convert tensor to numpy (zero-copy)
+    np_arr = to_numpy(tensor)
+
+    # Convert numpy array to Arrow array (zero-copy when memory layout is compatible)
+    # pa.array() can do zero-copy conversion for compatible numpy arrays
+    return pa.array(np_arr)
 
 
 __all__ = [
