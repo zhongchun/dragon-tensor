@@ -25,8 +25,10 @@ void save_tensor(const Tensor<T>& tensor, std::string_view path,
                  Layout layout = Layout::RowMajor);
 
 // Load tensor from file (with optional mmap)
+// Note: Default argument is specified in the implementation, not here,
+// to avoid conflicts with forward declarations
 template <typename T>
-[[nodiscard]] Tensor<T> load_tensor(std::string_view path, bool mmap = true);
+[[nodiscard]] Tensor<T> load_tensor(std::string_view path, bool mmap);
 
 // Helper to get dtype enum from type
 template <typename T>
@@ -44,6 +46,10 @@ template <typename T>
 constexpr size_t get_type_size() {
   return sizeof(T);
 }
+
+// Read dtype from file header (without loading the full tensor)
+// Returns the dtype stored in the file, or throws if file is invalid
+[[nodiscard]] DType read_dtype_from_file(std::string_view path);
 
 }  // namespace io
 

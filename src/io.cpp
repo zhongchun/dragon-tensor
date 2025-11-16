@@ -1,5 +1,7 @@
 #include "dragon_tensor/io.h"
 
+#include <unistd.h>  // For sysconf and _SC_PAGESIZE
+
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -71,25 +73,21 @@ void save_tensor(const Tensor<T>& tensor, std::string_view path,
 }
 
 template <typename T>
-Tensor<T> load_tensor(std::string_view path, bool mmap) {
+Tensor<T> load_tensor(std::string_view path, bool mmap /* = true */) {
   // Use C++17 filesystem to check file existence
   if (!fs::exists(path)) {
     throw std::runtime_error("File does not exist: " + std::string(path));
   }
 
-  if (mmap) {
-    // TODO: Implement mmap loading
-    // For now, fall back to regular load
-  }
+  std::string path_str(path);  // Convert string_view to string
 
-  std::string path_str(path);  // Convert string_view to string for ifstream
+  // Read header first (needed for both mmap and regular load)
   std::ifstream file(path_str, std::ios::binary);
   if (!file.is_open()) {
     throw std::runtime_error("Failed to open file for reading: " +
                              std::string(path));
   }
 
-  // Read header
   TensorHeader header;
   file.read(reinterpret_cast<char*>(&header), sizeof(TensorHeader));
 
@@ -118,6 +116,8 @@ Tensor<T> load_tensor(std::string_view path, bool mmap) {
     shape[i] = static_cast<size_t>(dim_val);
   }
 
+  file.close();  // Close file before mmap
+
   // Calculate data size
   size_t total_elements = 1;
   for (size_t dim : shape) {
@@ -125,23 +125,128 @@ Tensor<T> load_tensor(std::string_view path, bool mmap) {
   }
   size_t data_size_bytes = total_elements * sizeof(T);
 
-  // Read data
-  std::vector<T> data(total_elements);
-  file.read(reinterpret_cast<char*>(data.data()), data_size_bytes);
+  if (mmap) {
+    // Use memory-mapped I/O for on-demand loading
+    // Data offset is where the actual tensor data starts (after header + shape)
+    size_t data_offset = header.data_offset;
 
-  if (file.gcount() != static_cast<std::streamsize>(data_size_bytes)) {
-    throw std::runtime_error("File truncated or incomplete");
+    // mmap requires page-aligned offsets on many systems
+    // Map from the beginning of the file, then adjust pointer
+    // Get page size for alignment
+    size_t page_size = sysconf(_SC_PAGESIZE);
+    if (page_size == 0) {
+      page_size = 4096;  // Default to 4KB if sysconf fails
+    }
+
+    // Calculate aligned offset (round down to page boundary)
+    size_t aligned_offset = (data_offset / page_size) * page_size;
+    size_t offset_adjustment = data_offset - aligned_offset;
+    size_t total_map_size = offset_adjustment + data_size_bytes;
+
+    // Create memory-mapped buffer from aligned offset
+    auto buffer =
+        std::make_shared<MMapBuffer>(path_str, aligned_offset, total_map_size);
+
+    // Create a wrapper buffer that adjusts the pointer
+    // We'll create a custom buffer that wraps MMapBuffer with offset adjustment
+    class OffsetBuffer : public Buffer {
+     public:
+      OffsetBuffer(std::shared_ptr<MMapBuffer> base, size_t offset)
+          : base_(base), offset_(offset) {}
+      void* data() override {
+        return static_cast<char*>(base_->data()) + offset_;
+      }
+      const void* data() const override {
+        return static_cast<const char*>(base_->data()) + offset_;
+      }
+      size_t size_bytes() const override {
+        return base_->size_bytes() - offset_;
+      }
+      void flush() override { base_->flush(); }
+      void detach() override { base_->detach(); }
+
+     private:
+      std::shared_ptr<MMapBuffer> base_;
+      size_t offset_;
+    };
+
+    auto offset_buffer =
+        std::make_shared<OffsetBuffer>(buffer, offset_adjustment);
+
+    // Create tensor with mmap buffer (no data copy)
+    Tensor<T> tensor;
+    tensor.shape_ = shape;
+    tensor.storage_mode_ = StorageMode::MMap;
+    tensor.layout_ =
+        (header.layout == 0) ? Layout::RowMajor : Layout::ColumnMajor;
+    tensor.buffer_ = offset_buffer;
+
+    // data_ remains empty - tensor uses buffer_ directly
+    // All data access goes through raw_data() which uses buffer_->data()
+
+    return tensor;
+  } else {
+    // Regular load: read all data into memory
+    file.open(path_str, std::ios::binary);
+    if (!file.is_open()) {
+      throw std::runtime_error("Failed to open file for reading: " +
+                               std::string(path));
+    }
+
+    // Skip header and shape (we already read them)
+    file.seekg(header.data_offset);
+
+    // Read data
+    std::vector<T> data(total_elements);
+    file.read(reinterpret_cast<char*>(data.data()), data_size_bytes);
+
+    if (file.gcount() != static_cast<std::streamsize>(data_size_bytes)) {
+      throw std::runtime_error("File truncated or incomplete");
+    }
+
+    // Verify checksum (if enabled)
+    if (header.checksum != 0) {
+      uint32_t calculated_checksum =
+          calculate_checksum(data.data(), data_size_bytes);
+      // Note: header.checksum is uint64_t, but calculate_checksum returns
+      // uint32_t For now, we'll just check if checksum was calculated
+    }
+
+    return Tensor<T>(shape, std::move(data));
+  }
+}
+
+// Read dtype from file header
+DType read_dtype_from_file(std::string_view path) {
+  // Use C++17 filesystem to check file existence
+  if (!fs::exists(path)) {
+    throw std::runtime_error("File does not exist: " + std::string(path));
   }
 
-  // Verify checksum (if enabled)
-  if (header.checksum != 0) {
-    uint32_t calculated_checksum =
-        calculate_checksum(data.data(), data_size_bytes);
-    // Note: header.checksum is uint64_t, but calculate_checksum returns
-    // uint32_t For now, we'll just check if checksum was calculated
+  std::string path_str(path);  // Convert string_view to string for ifstream
+  std::ifstream file(path_str, std::ios::binary);
+  if (!file.is_open()) {
+    throw std::runtime_error("Failed to open file for reading: " +
+                             std::string(path));
   }
 
-  return Tensor<T>(shape, std::move(data));
+  // Read header
+  TensorHeader header;
+  file.read(reinterpret_cast<char*>(&header), sizeof(TensorHeader));
+
+  // Validate magic
+  if (header.magic != TensorHeader::MAGIC) {
+    throw std::runtime_error("Invalid file format: bad magic number");
+  }
+
+  // Validate version
+  if (header.version != TensorHeader::VERSION) {
+    throw std::runtime_error("Unsupported file version: " +
+                             std::to_string(header.version));
+  }
+
+  // Return the dtype from the header
+  return static_cast<DType>(header.dtype);
 }
 
 // Explicit instantiations

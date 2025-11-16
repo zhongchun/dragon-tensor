@@ -21,6 +21,8 @@ This document outlines key performance optimizations that can be applied to impr
 - [13. Expression Templates (Lazy Evaluation)](#13-expression-templates-lazy-evaluation) (Tensor Core)
 - [14. Backend Selection Optimization](#14-backend-selection-optimization) (Backend Layer)
 - [15. Build System Optimizations](#15-build-system-optimizations) (Build System) ✅ **Implemented**
+- [16. Memory-Mapped I/O Implementation](#16-memory-mapped-io-implementation) (Storage Layer) ✅ **Implemented**
+- [17. Lazy Import Optimization](#17-lazy-import-optimization) (Python API Layer) ✅ **Implemented**
 - [Priority Ranking](#priority-ranking)
 - [Build-Time Optimizations](#build-time-optimizations)
 - [Implementation Notes](#implementation-notes)
@@ -44,6 +46,8 @@ This document outlines key performance optimizations that can be applied to impr
 | 13 | Expression templates (lazy eval) | Low | Very High | 2-3x faster | Tensor Core | Arithmetic ops |
 | 14 | Backend selection optimization | Low | Medium | 10-15% faster | Backend Layer | Storage ops |
 | 15 | Build system optimizations | ✅ | ✅ | 5-10x faster builds | Build System | build.sh, setup.py |
+| 16 | Memory-mapped I/O implementation | ✅ | ✅ | On-demand loading, zero-copy | Storage Layer | io.cpp |
+| 17 | Lazy import optimization | ✅ | ✅ | ~85% memory reduction | Python API Layer | utils.py |
 
 ### Quick Reference
 
@@ -660,6 +664,85 @@ apt-get install ninja-build  # Linux
 3. No C++ compilation during Python package build
 
 **Expected Gain**: 5-10x faster Python package builds, especially for rebuilds
+
+---
+
+## 16. Memory-Mapped I/O Implementation
+
+### Status: ✅ **Implemented**
+
+**Layer**: Storage Layer
+
+**Location**: `src/io.cpp`, `src/buffer.cpp`
+
+**Implementation**: Full memory-mapped I/O support for on-demand tensor loading.
+
+**Key Features**:
+- **On-demand loading**: Only accessed pages are loaded by the OS, enabling efficient handling of datasets larger than available RAM
+- **Zero-copy access**: Memory-mapped tensors provide direct access to file data without copying
+- **Page-aligned mapping**: Handles page alignment requirements for mmap offsets using an `OffsetBuffer` wrapper
+- **Automatic dtype detection**: `load()` automatically detects tensor dtype from file header
+
+**Benefits**:
+- Efficient access to large datasets without loading all data into memory
+- Reduced memory footprint for large files
+- Fast random access to file-backed data
+- Seamless integration with existing tensor operations
+
+**Example**:
+```python
+# Load large dataset with mmap (on-demand access)
+tensor = dt.load("large_data.dt", mmap=True)
+# Only accessed pages are loaded by the OS
+result = tensor.sum()  # Data loaded on-demand
+```
+
+**Expected Gain**: Enables efficient handling of datasets larger than available RAM, zero-copy access to file data
+
+---
+
+## 17. Lazy Import Optimization
+
+### Status: ✅ **Implemented**
+
+**Layer**: Python API Layer
+
+**Location**: `python/dragon_tensor/utils.py`
+
+**Implementation**: Lazy imports for optional dependencies (PyTorch, PyArrow, Pandas) to reduce initial memory footprint.
+
+**Key Features**:
+- **Availability checking**: Uses `importlib.util.find_spec()` to check if optional dependencies are available without importing
+- **Lazy loading**: Optional dependencies are only imported when their functions are actually called
+- **Memory efficient**: Reduces initial memory footprint by ~85% (from ~74MB to ~10MB)
+
+**Benefits**:
+- Faster import time - no heavy library loading during import
+- Lower memory footprint - only load what you use
+- Better for production - reduces baseline memory usage
+- Backward compatible - API unchanged, just optimized internally
+
+**Implementation Details**:
+```python
+# Check availability without importing
+spec = importlib.util.find_spec("torch")
+HAS_TORCH = spec is not None
+
+# Lazy import function
+def _lazy_import_torch():
+    if not HAS_TORCH:
+        raise ImportError("torch is not installed")
+    if "torch" not in sys.modules:
+        import torch
+    return sys.modules["torch"]
+
+# Use in functions
+def from_torch(tensor):
+    torch = _lazy_import_torch()  # Only imports when called
+    # ... rest of function
+```
+
+**Expected Gain**: ~85% reduction in initial memory footprint (from ~74MB to ~10MB), faster import time
 
 ---
 

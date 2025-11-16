@@ -46,23 +46,43 @@ def save(tensor, path: Union[str, Path], layout: str = "row"):
 def load(path: Union[str, Path], mmap: bool = True):
     """Load tensor from disk
 
+    Automatically detects the tensor dtype from the file header and loads
+    using the appropriate tensor type.
+
     Args:
         path: File path to load from
         mmap: If True, use memory-mapped I/O (zero-copy for large files)
 
     Returns:
-        Dragon Tensor
+        Dragon Tensor (type depends on dtype stored in file)
 
     Example:
         >>> tensor = dt.load("data.dt", mmap=True)
 
-    Note:
-        Currently defaults to TensorDouble. For other types, use the specific
-        tensor class's load method directly (e.g., TensorFloat.load()).
+    Raises:
+        RuntimeError: If file format is invalid or dtype is unsupported
     """
-    # Default to TensorDouble for now
-    # TODO: Auto-detect tensor type from file metadata
-    return dragon_tensor.TensorDouble.load(str(path), mmap)
+    # Read dtype from file header
+    try:
+        dtype_int = dragon_tensor._dt_core.read_dtype_from_file(str(path))
+    except Exception as e:
+        raise RuntimeError(f"Failed to read dtype from file: {e}")
+
+    # Map DType enum to tensor class
+    # DType enum values: FLOAT32=0, FLOAT64=1, INT32=2, INT64=3, UINT8=4
+    if dtype_int == 0:  # FLOAT32
+        return dragon_tensor.TensorFloat.load(str(path), mmap)
+    elif dtype_int == 1:  # FLOAT64
+        return dragon_tensor.TensorDouble.load(str(path), mmap)
+    elif dtype_int == 2:  # INT32
+        return dragon_tensor.TensorInt.load(str(path), mmap)
+    elif dtype_int == 3:  # INT64
+        return dragon_tensor.TensorLong.load(str(path), mmap)
+    else:
+        raise RuntimeError(
+            f"Unsupported dtype in file: {dtype_int}. "
+            "Supported types: float32, float64, int32, int64"
+        )
 
 
 @contextlib.contextmanager

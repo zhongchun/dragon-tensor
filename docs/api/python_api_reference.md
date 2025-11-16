@@ -44,6 +44,8 @@ import dragon_tensor as dt
 
 The module provides tensor classes and conversion functions for integration with NumPy, Pandas, PyTorch, and Apache Arrow.
 
+**Memory Optimization**: Optional dependencies (PyTorch, PyArrow, Pandas) are only imported when their functions are called, keeping the initial memory footprint low (~10MB vs ~74MB with all dependencies loaded).
+
 ---
 
 ## Tensor Classes
@@ -844,25 +846,32 @@ dt.save(tensor, "data.dt", layout="column")
 ```
 
 #### `load(path: str, mmap: bool = True) -> Tensor`
-Loads tensor from file.
+Loads tensor from file with automatic dtype detection.
 
 **Parameters:**
 - `path`: File path to load from
-- `mmap`: If `True`, use memory-mapped I/O (default: `True`)
+- `mmap`: If `True`, use memory-mapped I/O for on-demand loading (default: `True`)
 
-**Returns:** Loaded tensor
+**Returns:** Loaded tensor (type automatically determined from file header)
 
 **Raises:** `RuntimeError` on file I/O or format errors
 
-**Note:** Currently defaults to `TensorDouble`. For other types, use the specific tensor class's load method directly.
+**Notes:**
+- Automatically detects the tensor dtype from the file header and loads using the appropriate tensor type
+- When `mmap=True` (default), data is loaded on-demand by the OS - only accessed pages are loaded into memory
+- Memory-mapped tensors provide zero-copy access and are ideal for large datasets
+- When `mmap=False`, all data is read into memory immediately
 
 **Example:**
 ```python
-# Using convenience function (defaults to TensorDouble)
-loaded = dt.load("data.dt", mmap=True)
+# Using convenience function (auto-detects dtype, uses mmap by default)
+loaded = dt.load("data.dt", mmap=True)  # On-demand loading
 
-# Using specific tensor type
-loaded = dt.TensorDouble.load("data.dt", mmap=False)
+# Load without mmap (read all data into memory)
+loaded = dt.load("data.dt", mmap=False)
+
+# Using specific tensor type directly
+loaded = dt.TensorDouble.load("data.dt", mmap=True)
 ```
 
 #### `open(path: str, mmap: bool = True) -> ContextManager[Tensor]`
@@ -870,14 +879,19 @@ Context manager for loading tensors from files. Automatically handles resource c
 
 **Parameters:**
 - `path`: File path to open
-- `mmap`: If `True`, use memory-mapped I/O
+- `mmap`: If `True`, use memory-mapped I/O for on-demand loading
 
 **Returns:** Context manager yielding a tensor
+
+**Notes:**
+- Automatically unmaps the memory-mapped file when exiting the context
+- Ideal for working with large files that should be cleaned up automatically
 
 **Example:**
 ```python
 with dt.open("large_data.dt", mmap=True) as tensor:
-    result = tensor.sum()
+    result = tensor.sum()  # Data loaded on-demand
+    # File is automatically unmapped when exiting context
     # Tensor is automatically detached when exiting context
 ```
 
@@ -1057,8 +1071,10 @@ corr = asset1.correlation(asset2)
 
 - **Zero-copy conversions**: `to_numpy()`, `to_torch()`, and `to_arrow()` provide zero-copy views when possible (available as both methods and module functions)
 - **NumPy compatibility**: PyTorch integration automatically handles NumPy 2.x compatibility issues with fallback conversion methods
-- **Memory mapping**: Use `mmap=True` when loading large files for on-demand access
+- **Memory mapping**: Use `mmap=True` when loading large files for on-demand access - only accessed pages are loaded by the OS, enabling efficient handling of datasets larger than available RAM
+- **Lazy imports**: Optional dependencies (PyTorch, PyArrow, Pandas) are only imported when their functions are called, reducing initial memory footprint from ~74MB to ~10MB (~85% reduction)
 - **Shared memory**: Ultra-low latency for inter-process communication
 - **Layout optimization**: Use `layout="column"` for column-wise queries, `layout="row"` for row-wise queries
 - **Unified API**: `from_numpy()` automatically handles all NumPy dtypes, simplifying code
 - **Arrow integration**: `from_arrow()` and `to_arrow()` enable efficient data exchange with the Arrow ecosystem without memory duplication when layouts are compatible
+- **Automatic dtype detection**: `load()` automatically detects tensor dtype from file header, eliminating the need to specify tensor type

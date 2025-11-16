@@ -1,3 +1,4 @@
+#include <dragon_tensor/io.h>
 #include <dragon_tensor/storage.h>
 #include <dragon_tensor/tensor.h>
 #include <pybind11/functional.h>
@@ -395,6 +396,14 @@ PYBIND11_MODULE(_dragon_tensor_cpp, m) {
   bind_tensor_operations<double>(m, "Double");
   bind_tensor_operations<int32_t>(m, "Int");
   bind_tensor_operations<int64_t>(m, "Long");
+
+  // I/O utilities
+  m.def(
+      "read_dtype_from_file",
+      [](const std::string& path) {
+        return static_cast<int>(dragon_tensor::io::read_dtype_from_file(path));
+      },
+      "Read dtype from file header without loading the full tensor");
 
   // Convenience functions for creating tensors from numpy arrays
   m.def(

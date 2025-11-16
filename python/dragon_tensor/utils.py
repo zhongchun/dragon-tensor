@@ -4,42 +4,68 @@ Utility functions for dtype conversion, device checks, and interoperability
 
 import numpy as np
 
-try:
-    import pandas as pd
+# Lazy imports to reduce memory footprint
+# Only check availability, don't import until needed
 
-    HAS_PANDAS = True
-except ImportError:
+try:
+    import importlib.util
+    import sys
+
+    # Check if pandas is available without importing
+    spec = importlib.util.find_spec("pandas")
+    HAS_PANDAS = spec is not None
+except (ImportError, AttributeError):
     HAS_PANDAS = False
 
 try:
-    import warnings
-    import sys
-    import os
+    import importlib.util
 
-    # Suppress NumPy compatibility warnings during torch import
-    # These warnings occur when torch was compiled with NumPy 1.x but NumPy 2.x is installed
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore")
-        # Temporarily redirect stderr to suppress NumPy compatibility messages
-        old_stderr = sys.stderr
-        try:
-            sys.stderr = open(os.devnull, "w")
-            import torch
-        finally:
-            sys.stderr.close()
-            sys.stderr = old_stderr
-
-    HAS_TORCH = True
-except (ImportError, RuntimeError, AttributeError, Exception):
-    # Catch all exceptions during torch import (NumPy compatibility issues, etc.)
+    # Check if torch is available without importing
+    spec = importlib.util.find_spec("torch")
+    HAS_TORCH = spec is not None
+except (ImportError, AttributeError):
     HAS_TORCH = False
 
 try:
-    import pyarrow  # noqa: F401
+    import importlib.util
 
-    HAS_ARROW = True
-except ImportError:
+    # Check if pyarrow is available without importing
+    spec = importlib.util.find_spec("pyarrow")
+    HAS_ARROW = spec is not None
+except (ImportError, AttributeError):
     HAS_ARROW = False
+
+
+# Lazy import functions for torch and pyarrow
+def _lazy_import_torch():
+    """Lazy import torch only when needed"""
+    if not HAS_TORCH:
+        raise ImportError("torch is not installed")
+    if "torch" not in sys.modules:
+        import warnings
+        import os
+
+        # Suppress NumPy compatibility warnings during torch import
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            old_stderr = sys.stderr
+            try:
+                sys.stderr = open(os.devnull, "w")
+                import torch
+            finally:
+                sys.stderr.close()
+                sys.stderr = old_stderr
+    return sys.modules["torch"]
+
+
+def _lazy_import_pyarrow():
+    """Lazy import pyarrow only when needed"""
+    if not HAS_ARROW:
+        raise ImportError("pyarrow is not installed")
+    if "pyarrow" not in sys.modules:
+        import pyarrow
+    return sys.modules["pyarrow"]
+
 
 try:
     import dragon_tensor
@@ -105,6 +131,9 @@ def from_pandas(obj):
     if not HAS_PANDAS:
         raise ImportError("pandas is required for from_pandas")
 
+    # Lazy import pandas only when this function is called
+    import pandas as pd
+
     if isinstance(obj, pd.Series):
         return dragon_tensor.from_pandas_series(obj)
     elif isinstance(obj, pd.DataFrame):
@@ -127,6 +156,9 @@ def to_pandas(tensor, index=None, columns=None):
     if not HAS_PANDAS:
         raise ImportError("pandas is required for to_pandas")
 
+    # Lazy import pandas only when this function is called
+    import pandas as pd
+
     arr = tensor.to_numpy()
 
     if tensor.ndim() == 1:
@@ -146,8 +178,8 @@ def from_torch(tensor):
     Returns:
         Dragon Tensor
     """
-    if not HAS_TORCH:
-        raise ImportError("torch is required for from_torch")
+    # Lazy import torch only when this function is called
+    torch = _lazy_import_torch()
 
     # Convert torch tensor to numpy first (handles NumPy compatibility issues)
     # This is more reliable than using the C++ from_torch which may have NumPy issues
@@ -197,8 +229,8 @@ def to_torch(tensor, device=None, dtype=None):
     Returns:
         PyTorch tensor (zero-copy when device=None and dtype matches)
     """
-    if not HAS_TORCH:
-        raise ImportError("torch is required for to_torch")
+    # Lazy import torch only when this function is called
+    torch = _lazy_import_torch()
 
     # Get NumPy array
     arr = tensor.to_numpy()
@@ -231,10 +263,8 @@ def from_arrow(arrow_array):
     Returns:
         Dragon Tensor
     """
-    if not HAS_ARROW:
-        raise ImportError("pyarrow is required for from_arrow")
-
-    import pyarrow as pa
+    # Lazy import pyarrow only when this function is called
+    pa = _lazy_import_pyarrow()
 
     if not isinstance(arrow_array, pa.Array):
         raise TypeError(f"Expected pyarrow.Array, got {type(arrow_array)}")
@@ -257,10 +287,8 @@ def to_arrow(tensor):
     Returns:
         pyarrow.Array
     """
-    if not HAS_ARROW:
-        raise ImportError("pyarrow is required for to_arrow")
-
-    import pyarrow as pa
+    # Lazy import pyarrow only when this function is called
+    pa = _lazy_import_pyarrow()
 
     # Convert tensor to numpy (zero-copy)
     np_arr = to_numpy(tensor)
