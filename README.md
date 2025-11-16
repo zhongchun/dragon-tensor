@@ -866,31 +866,46 @@ pip install pytest pytest-cov
 
 ```bash
 # Run all tests (from project root)
-PYTHONPATH=python:$PYTHONPATH pytest
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/
 
 # Run with verbose output
-PYTHONPATH=python:$PYTHONPATH pytest -v
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -v
 
 # Run a specific test file
-PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/test_basic_operations.py
 
 # Run a specific test class or function
-PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation
-PYTHONPATH=python:$PYTHONPATH pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation::test_from_numpy_float64
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/test_basic_operations.py::TestTensorCreation::test_from_numpy_float64
 
 # Run tests matching a pattern
-PYTHONPATH=python:$PYTHONPATH pytest -k finance
-PYTHONPATH=python:$PYTHONPATH pytest -k numpy
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -k finance
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -k numpy
 
-# Run with coverage report
-PYTHONPATH=python:$PYTHONPATH pytest --cov=dragon_tensor --cov-report=html
+# Run with coverage report (terminal output)
+PYTHONPATH=python:$PYTHONPATH python -m pytest --cov=python/dragon_tensor python/dragon_tensor/tests/ --cov-report=term-missing
+
+# Run with coverage report (HTML output)
+PYTHONPATH=python:$PYTHONPATH python -m pytest --cov=python/dragon_tensor python/dragon_tensor/tests/ --cov-report=html
 # Then open htmlcov/index.html in your browser
 
+# Run with both terminal and HTML coverage reports
+PYTHONPATH=python:$PYTHONPATH python -m pytest --cov=python/dragon_tensor python/dragon_tensor/tests/ --cov-report=term-missing --cov-report=html
+
 # Skip tests requiring optional dependencies
-PYTHONPATH=python:$PYTHONPATH pytest -m "not requires_pandas and not requires_torch and not requires_arrow"
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -m "not requires_pandas and not requires_torch and not requires_arrow"
+
+# Run only tests with specific markers
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -m requires_arrow
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -m requires_torch
 ```
 
-**Note:** If you install the package with `pip install -e .`, you can run `pytest` directly without setting `PYTHONPATH`.
+**Important Notes:**
+
+- Use `--cov=python/dragon_tensor` (not `--cov=dragon_tensor`) for correct coverage reporting
+- Use `python -m pytest` instead of just `pytest` for better module path resolution
+- If you install the package with `pip install -e .`, you can run `pytest` directly without setting `PYTHONPATH`
+- Test markers: `requires_pandas`, `requires_torch`, `requires_arrow`, `slow`, `integration`
 
 #### Test Structure
 
@@ -904,6 +919,48 @@ The test suite includes:
 - **`test_multiple_tensors.py`** (30 tests): Multiple tensor operations, chaining, in-place operations, comparisons, matrix operations, statistical operations, financial workflows, type conversions, edge cases
 
 **Total: 104 tests** covering the core functionality of Dragon Tensor.
+
+#### Test Coverage
+
+The test suite achieves **89% code coverage**:
+
+- **Test files**: 98-100% coverage
+- **Core modules**: 86% coverage (`__init__.py`)
+- **I/O operations**: 77% coverage (`io.py`)
+- **Financial operations**: 62% coverage (`finance.py`)
+- **Utility functions**: 55% coverage (`utils.py` - mostly optional dependencies)
+
+To view detailed coverage:
+
+```bash
+# Generate HTML coverage report
+PYTHONPATH=python:$PYTHONPATH python -m pytest --cov=python/dragon_tensor python/dragon_tensor/tests/ --cov-report=html
+
+# Open the report
+open htmlcov/index.html  # macOS
+# or
+xdg-open htmlcov/index.html  # Linux
+```
+
+#### Test Markers
+
+The test suite uses markers to categorize tests:
+
+- `@pytest.mark.requires_pandas`: Tests that require pandas
+- `@pytest.mark.requires_torch`: Tests that require PyTorch
+- `@pytest.mark.requires_arrow`: Tests that require pyarrow
+- `@pytest.mark.slow`: Tests that take longer to run
+- `@pytest.mark.integration`: Integration tests
+
+These markers are registered in `pyproject.toml` and can be used to filter tests:
+
+```bash
+# Run only fast tests
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -m "not slow"
+
+# Run only integration tests
+PYTHONPATH=python:$PYTHONPATH python -m pytest python/dragon_tensor/tests/ -m integration
+```
 
 ## Troubleshooting
 
