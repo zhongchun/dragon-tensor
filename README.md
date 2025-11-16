@@ -887,8 +887,9 @@ The test suite includes:
 - **`test_numpy_integration.py`** (10 tests): NumPy round-trip conversions, dtype handling, edge cases
 - **`test_finance.py`** (12 tests): Returns, rolling statistics, correlation, covariance, financial workflows
 - **`test_io.py`** (10 tests): Save/load operations, memory mapping, layout options, error handling
+- **`test_arrow_integration.py`** (16 tests): Apache Arrow round-trip conversions, zero-copy operations, all tensor types, edge cases
 
-**Total: 58 tests** covering the core functionality of Dragon Tensor.
+**Total: 74 tests** covering the core functionality of Dragon Tensor.
 
 ## Troubleshooting
 
