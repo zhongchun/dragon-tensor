@@ -6,7 +6,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 namespace py = pybind11;
@@ -135,6 +137,207 @@ py::array_t<T> tensor_to_numpy(const Tensor<T>& tensor) {
                         owner  // Capsule keeps tensor_holder alive, ensuring
                                // data_ptr remains valid
   );
+}
+
+// Helper function to format tensor representation (NumPy-style)
+template <typename T>
+std::string format_tensor_repr(const Tensor<T>& t,
+                               const std::string& class_name) {
+  auto shape = t.shape();
+  size_t total_size = t.size();
+
+  if (total_size == 0) {
+    std::string repr = class_name + "([], shape=(";
+    for (size_t i = 0; i < shape.size(); ++i) {
+      repr += std::to_string(shape[i]);
+      if (i < shape.size() - 1) repr += ", ";
+    }
+    repr += "))";
+    return repr;
+  }
+
+  // Threshold for showing ellipsis (show first 3 and last 3)
+  const size_t threshold = 6;
+  const size_t edge_items = 3;
+
+  std::ostringstream oss;
+  oss << class_name << "([";
+
+  if (shape.size() == 1) {
+    // 1D tensor
+    if (total_size <= threshold) {
+      // Show all elements
+      for (size_t i = 0; i < total_size; ++i) {
+        if (i > 0) oss << ", ";
+        oss << t[i];
+      }
+    } else {
+      // Show first few, ..., last few
+      for (size_t i = 0; i < edge_items; ++i) {
+        if (i > 0) oss << ", ";
+        oss << t[i];
+      }
+      oss << ", ..., ";
+      for (size_t i = total_size - edge_items; i < total_size; ++i) {
+        if (i > total_size - edge_items) oss << ", ";
+        oss << t[i];
+      }
+    }
+    oss << "], shape=(";
+    for (size_t i = 0; i < shape.size(); ++i) {
+      if (i > 0) oss << ", ";
+      oss << shape[i];
+    }
+    oss << "))";
+  } else if (shape.size() == 2) {
+    // 2D tensor
+    size_t rows = shape[0];
+    size_t cols = shape[1];
+    bool show_row_ellipsis = rows > threshold;
+    bool show_col_ellipsis = cols > threshold;
+
+    for (size_t r = 0; r < rows; ++r) {
+      if (show_row_ellipsis && r == edge_items) {
+        oss << " ...,\n";
+        r = rows - edge_items;
+        if (r >= rows) break;
+      }
+      if (r > 0) oss << " ";
+
+      oss << "[";
+      if (show_col_ellipsis) {
+        // Show first few columns
+        for (size_t c = 0; c < edge_items; ++c) {
+          if (c > 0) oss << ", ";
+          oss << t.at({r, c});
+        }
+        oss << ", ..., ";
+        // Show last few columns
+        for (size_t c = cols - edge_items; c < cols; ++c) {
+          if (c > cols - edge_items) oss << ", ";
+          oss << t.at({r, c});
+        }
+      } else {
+        // Show all columns
+        for (size_t c = 0; c < cols; ++c) {
+          if (c > 0) oss << ", ";
+          oss << t.at({r, c});
+        }
+      }
+      oss << "]";
+      if (r < rows - 1) oss << ",";
+      if (r < rows - 1) oss << "\n";
+    }
+    oss << "], shape=(";
+    for (size_t i = 0; i < shape.size(); ++i) {
+      if (i > 0) oss << ", ";
+      oss << shape[i];
+    }
+    oss << "))";
+  } else {
+    // Higher dimensional: recursively format as nested arrays
+    // For 3D: show 2D slices, for 4D: show 3D blocks, etc.
+    size_t first_dim = shape[0];
+    bool show_first_dim_ellipsis = first_dim > threshold;
+
+    // Build remaining shape for recursive formatting
+    std::vector<size_t> remaining_shape(shape.begin() + 1, shape.end());
+
+    for (size_t d0 = 0; d0 < first_dim; ++d0) {
+      if (show_first_dim_ellipsis && d0 == edge_items) {
+        oss << " ...,\n\n";
+        d0 = first_dim - edge_items;
+        if (d0 >= first_dim) break;
+      }
+
+      if (d0 > 0) {
+        oss << ",\n\n";
+      }
+
+      // Format the slice at this first dimension index
+      // For 3D tensor: remaining_shape.size() == 2, format as 2D array
+      if (remaining_shape.size() == 2) {
+        // 2D slice (for 3D tensor) - format as 2D array
+        size_t rows = remaining_shape[0];
+        size_t cols = remaining_shape[1];
+        bool show_row_ellipsis = rows > threshold;
+        bool show_col_ellipsis = cols > threshold;
+
+        oss << "[";
+        for (size_t r = 0; r < rows; ++r) {
+          if (show_row_ellipsis && r == edge_items) {
+            oss << " ...,\n        ";
+            r = rows - edge_items;
+            if (r >= rows) break;
+          }
+          if (r > 0) oss << "        ";
+
+          oss << "[";
+          if (show_col_ellipsis) {
+            for (size_t c = 0; c < edge_items; ++c) {
+              if (c > 0) oss << ", ";
+              std::vector<size_t> indices = {d0, r, c};
+              oss << t.at(indices);
+            }
+            oss << ", ..., ";
+            for (size_t c = cols - edge_items; c < cols; ++c) {
+              if (c > cols - edge_items) oss << ", ";
+              std::vector<size_t> indices = {d0, r, c};
+              oss << t.at(indices);
+            }
+          } else {
+            for (size_t c = 0; c < cols; ++c) {
+              if (c > 0) oss << ", ";
+              std::vector<size_t> indices = {d0, r, c};
+              oss << t.at(indices);
+            }
+          }
+          oss << "]";
+          if (r < rows - 1) oss << ",";
+          if (r < rows - 1) oss << "\n";
+        }
+        oss << "]";
+      } else if (remaining_shape.size() == 1) {
+        // 1D slice (shouldn't happen in higher-dim case, but handle it)
+        size_t cols = remaining_shape[0];
+        bool show_col_ellipsis = cols > threshold;
+
+        oss << "[";
+        if (show_col_ellipsis) {
+          for (size_t c = 0; c < edge_items; ++c) {
+            if (c > 0) oss << ", ";
+            std::vector<size_t> indices = {d0, c};
+            oss << t.at(indices);
+          }
+          oss << ", ..., ";
+          for (size_t c = cols - edge_items; c < cols; ++c) {
+            if (c > cols - edge_items) oss << ", ";
+            std::vector<size_t> indices = {d0, c};
+            oss << t.at(indices);
+          }
+        } else {
+          for (size_t c = 0; c < cols; ++c) {
+            if (c > 0) oss << ", ";
+            std::vector<size_t> indices = {d0, c};
+            oss << t.at(indices);
+          }
+        }
+        oss << "]";
+      } else {
+        // 4D+ tensor: show simplified representation
+        oss << "...";
+      }
+    }
+
+    oss << "], shape=(";
+    for (size_t i = 0; i < shape.size(); ++i) {
+      if (i > 0) oss << ", ";
+      oss << shape[i];
+    }
+    oss << "))";
+  }
+
+  return oss.str();
 }
 
 // Template to bind Tensor operations
@@ -372,17 +575,9 @@ void bind_tensor_operations(py::module& m, const std::string& name_suffix) {
       .def("flush", &Tensor<T>::flush,
            "Force write-back for file-backed tensors")
 
-      // String representation
+      // String representation (NumPy-style)
       .def("__repr__", [class_name](const Tensor<T>& t) {
-        std::string repr = class_name + "(shape=";
-        auto shape = t.shape();
-        repr += "[";
-        for (size_t i = 0; i < shape.size(); ++i) {
-          repr += std::to_string(shape[i]);
-          if (i < shape.size() - 1) repr += ", ";
-        }
-        repr += "])";
-        return repr;
+        return format_tensor_repr(t, class_name);
       });
 }
 
