@@ -37,6 +37,7 @@ A high-performance tensor library written in C++17, designed specifically for fi
   - [Python module not found after build](#python-module-not-found-after-build)
 - [Contributing](#contributing)
   - [Code Formatting](#code-formatting)
+  - [Pull Request Guidelines](#pull-request-guidelines)
 - [Version Management](#version-management)
 - [Version History](#version-history)
   - [v0.3 (Current)](#v03-current)
@@ -1061,6 +1062,128 @@ The format script automatically:
 - Formats Python files using `black`
 - Installs missing Python formatting tools if needed
 - Skips build directories and other non-source files
+
+### Pull Request Guidelines
+
+When submitting a Pull Request, please follow these guidelines:
+
+#### Branch Naming
+
+Use descriptive branch names following the pattern: `<type>/<short-description>`
+
+Examples:
+
+- `docs/add-planning-docs`
+- `feat/add-matrix-operations`
+- `fix/memory-leak-in-buffer`
+- `refactor/backend-abstraction`
+
+#### Commit Message Format
+
+Follow the **Angular commit message convention**:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples:**
+```
+docs(planning): add futures.md
+
+feat(tensor): implement matrix multiplication
+
+fix(buffer): resolve memory leak in MMapBuffer
+```
+
+#### PR Template
+
+All Pull Requests must include the following sections:
+
+```markdown
+## Summary
+
+Brief overview of the changes in this PR.
+
+## Changes
+
+- List of specific changes made
+- Use bullet points for clarity
+- Mark completed items with [x]
+
+## Technical Details
+
+Detailed technical explanation of the implementation, including:
+- Architecture decisions
+- Algorithm choices
+- Design patterns used
+- Any relevant technical context
+
+## Testing
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing performed
+- [ ] All existing tests pass
+
+## Performance Impact
+
+Describe any performance implications:
+- Performance improvements
+- Performance regressions
+- Benchmark results (if applicable)
+- Memory usage changes
+
+## Breaking Changes
+
+List any breaking changes:
+- API changes
+- Behavior changes
+- Migration guide (if needed)
+- If none, state "None"
+
+## Related Issues
+
+Link to related issues:
+- Closes #123
+- Related to #456
+- If none, state "N/A"
+
+## Checklist
+
+- [ ] Code follows project style guidelines
+- [ ] Commit message follows Angular commit message convention
+- [ ] Documentation is updated
+- [ ] Tests are added/updated and passing
+- [ ] No breaking changes introduced (or breaking changes are documented)
+- [ ] All files are properly formatted
+- [ ] Build passes successfully
+```
+
+#### PR Checklist
+
+Before submitting your PR, ensure:
+
+- [ ] Code is formatted (`./format.sh`)
+- [ ] Build passes (`./build.sh`)
+- [ ] All tests pass (`PYTHONPATH=python:$PYTHONPATH pytest`)
+- [ ] Documentation is updated (if needed)
+- [ ] Commit messages follow Angular convention
+- [ ] Branch name follows naming convention
+- [ ] PR description includes all required sections
 
 ## Version Management
 
