@@ -62,4 +62,3 @@ auto buffer = backend->allocate(size_bytes, Layout::RowMajor);
 ## Implementation Details
 
 See `include/dragon_tensor/backend.h` and implementation files in `include/dragon_tensor/backends/`.
-
